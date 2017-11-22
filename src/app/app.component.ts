@@ -1,4 +1,4 @@
-import { Component } from '@angular/core';
+import { Component, NgZone } from '@angular/core';
 import { GapiService } from './gapi.service';
 import { OnInit } from '@angular/core/src/metadata/lifecycle_hooks';
 import { DataSource } from '@angular/cdk/collections';
@@ -12,7 +12,10 @@ const { version: appVersion } = require('../../package.json')
   styleUrls: ['./app.component.css']
 })
 export class AppComponent implements OnInit {
-  constructor(private gapiService:GapiService) {		
+  constructor(
+		private gapiService: GapiService,
+		private zone: NgZone
+	) {		
 		this.version = appVersion;
   }
 	title = 'FinCal';
@@ -24,7 +27,7 @@ export class AppComponent implements OnInit {
   calBalance : any; //= JSON.parse(localStorage.getItem("calBalance"));
   curBalance : number; //= parseFloat(localStorage.getItem("curBalance") || '0.00');
   tarDate : Date; //= new Date(parseInt(localStorage.getItem("tarDate") ||  (new Date()).getTime().toString()));
-  accessAuthorized = false;
+	accessAuthorized = false;	 
   calendars = [];
   results: TransactionDataSource | null;
   
@@ -43,27 +46,27 @@ export class AppComponent implements OnInit {
 		} else {
 			this.tarDate = new Date();
 		}
-	}
 
-	signOut() {
-		this.gapiService.signOut();
-		this.accessAuthorized = false;
-	}
-
-	handleAuthClick() {
-		this.gapiService.authorize().then(authResult => this.handleAuthResult(), error => console.log('handleAuthClick error', error));
-	}
-
-	handleAuthResult() {
-		this.accessAuthorized = true;
-		this.gapiService.loadCalendars().then(items => {
+    const run = fn => r => this.zone.run(() => fn(r));
+		this.gapiService.signedIn$.subscribe(run(isSignedIn => {
+			this.accessAuthorized = isSignedIn
+		}));
+		this.gapiService.calendars$.subscribe(run(items => {
 			this.calendars = items;
 			let calCredit = JSON.parse(localStorage.getItem("calCredit"));
 			this.calCredit = this.calendars.find(c => c.id == calCredit.id);
 
 			let calDebit = JSON.parse(localStorage.getItem("calDebit"));
 			this.calDebit = this.calendars.find(c => c.id == calDebit.id);
-		});
+		}));
+	}
+
+	signOut() {
+		this.gapiService.signOut();
+	}
+
+	handleAuthClick() {
+		this.gapiService.signIn();
 	}
 
 	updateResults() {
