@@ -43,15 +43,27 @@
 .select-calendar > img {
 	height: 10px;
 }
-
+.fincal-controls {
+	padding-top: 20px;
+}
 .fincal-controls > div > mat-form-field {
 	width: 100%;
 }
-.mat-column-Balance,
-.mat-column-When {
+.mat-column-Balance{
 	max-width:15%;
 }
-
+.mat-column-Summary {
+	overflow:hidden;
+	white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.mat-column-When {
+	max-width:22%;
+}
+.mat-header-row,
+.mat-row {
+	padding:0;
+}
 </style>
 <div style="text-align:center">
 	<h1>
@@ -114,7 +126,7 @@
 				</ng-container>
 				<ng-container matColumnDef="When">
 					<mat-header-cell *matHeaderCellDef>Date</mat-header-cell>
-					<mat-cell *matCellDef="let row">{{row.When | date:'MM-dd-yyyy'}}</mat-cell>
+					<mat-cell *matCellDef="let row">{{row.When | date:'MM-dd-yy'}}</mat-cell>
 				</ng-container>
 				<mat-header-row *matHeaderRowDef="['Balance','Summary','When']"></mat-header-row>
 				<mat-row *matRowDef="let row; columns: ['Balance','Summary','When']"></mat-row>
