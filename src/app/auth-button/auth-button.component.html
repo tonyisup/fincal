@@ -1,0 +1,12 @@
+<ng-container *ngIf="!authorized">
+	<span>Authorize access to Google Calendar API</span>
+	<!--Button for the user to click to initiate auth sequence -->
+	<button mat-button (click)="signIn()">
+    AUTHORIZE
+	</button>
+</ng-container>
+<ng-container *ngIf="authorized">
+	<button (click)="signOut()">
+		SIGN OUT
+	</button>
+</ng-container>
