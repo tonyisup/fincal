@@ -4,6 +4,9 @@ import { OnInit } from '@angular/core/src/metadata/lifecycle_hooks';
 import { DataSource } from '@angular/cdk/collections';
 import { CollectionViewer } from '@angular/cdk/collections';
 import { Observable } from 'rxjs/Observable';
+import { FincalFilterConfig } from './data/fincal-filter-config';
+import { FincalTransaction } from './data/fincal-transaction';
+import { FincalTransactionType } from './data/fincal-transaction-type';
 const { version: appVersion } = require('../../package.json')
 
 @Component({
@@ -29,11 +32,14 @@ export class AppComponent implements OnInit {
   tarDate : Date; //= new Date(parseInt(localStorage.getItem("tarDate") ||  (new Date()).getTime().toString()));
 	accessAuthorized = false;	 
   calendars = [];
-  results: TransactionDataSource | null;
-  
+  results = new TransactionDataSource([]);
+	
+	filterConfig = new FincalFilterConfig();
+
 	ngOnInit(): void {
 		let curBalance = localStorage.getItem("curBalance");
 		let tarDate = localStorage.getItem("tarDate");
+		this.filterConfig.loadFromJsonString(localStorage.getItem("filterConfig"))
 		
 		if (curBalance != null) {
 			this.curBalance = JSON.parse(curBalance);
@@ -75,9 +81,11 @@ export class AppComponent implements OnInit {
 		localStorage.setItem("calBalance", JSON.stringify(this.calBalance));
 		localStorage.setItem("curBalance", JSON.stringify(this.curBalance));
 		localStorage.setItem("tarDate", JSON.stringify(this.tarDate));
+		localStorage.setItem("filterConfig", JSON.stringify(this.filterConfig));
 		let sDate = this.tarDate.toString().split('T')[0].split('-');
 		let tarDate = new Date(Date.UTC(+sDate[0], +sDate[1]-1, +sDate[2]));
 
+		this.results = new TransactionDataSource([]);
 		this.gapiService.getUpcomingEvents(this.calCredit.id, tarDate).then(creditResponse => {
 			let credits = creditResponse.result.items;
 			this.gapiService.getUpcomingEvents(this.calDebit.id, tarDate).then(debitResponse => {
@@ -89,9 +97,9 @@ export class AppComponent implements OnInit {
 		});
 	}
 
-	processData(credits, debits, currentBalance): Promise<Transaction[]> {
+	processData(credits, debits, currentBalance): Promise<FincalTransaction[]> {
 		return new Promise((resolve, error) => {
-			let results: Transaction[] = [];
+			let results: FincalTransaction[] = [];
 
 			var currentDate =  new Date();
 
@@ -121,16 +129,15 @@ export class AppComponent implements OnInit {
 			for (i = 0; i < transactions.length; i++)
 			{
 				var t = transactions[i];
-				var newBalance = currentBalance + ((t.credit ? 1 : -1) * t.amount)
-				results.push(
-					{ 
-						Balance: currentBalance,
-						Summary: t.summary,
-						When: t.when, 
-						Type: t.credit ? TransactionType.Credit : TransactionType.Debit
-					}
-				);
-				currentBalance = newBalance;
+				let ft = <FincalTransaction> { 
+					Balance: currentBalance,
+					Summary: t.summary,
+					When: t.when, 
+					Type: t.credit ? FincalTransactionType.Credit : FincalTransactionType.Debit
+				};
+				if(this.filterConfig.IsDisplayed(ft)) results.push(ft);
+
+				currentBalance += (t.credit ? 1 : -1) * t.amount;
 			}
 			resolve(results);
 		});
@@ -159,23 +166,18 @@ export class AppComponent implements OnInit {
 			return false;
 	}
 }
-
-export enum TransactionType {
-	Credit,
-	Debit
-}
-export class Transaction {
-	Balance: number;
-	Summary: string;
-	When: string;
-	Type: TransactionType;
-}
-export class TransactionDataSource extends DataSource<Transaction> {
-	constructor(private _data: Transaction[]) {
+export class TransactionDataSource extends DataSource<FincalTransaction> {
+	constructor(private _data: FincalTransaction[]) {
 		super();
+		this.load(_data);
 	}
-	connect(collectionViewer: CollectionViewer): Observable<Transaction[]> {
-		return Observable.of(this._data);
+	_transactions: Observable<FincalTransaction[]>;
+
+	public load(fincalTransactions: FincalTransaction[]) {
+		this._transactions = Observable.of(this._data);
+	}
+	connect(collectionViewer: CollectionViewer): Observable<FincalTransaction[]> {
+		return this._transactions;
 	}
 	disconnect(collectionViewer: CollectionViewer): void {
 		//Not sure

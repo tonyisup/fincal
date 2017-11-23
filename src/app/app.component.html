@@ -44,10 +44,20 @@
 	height: 10px;
 }
 .fincal-controls {
-	padding-top: 20px;
+	padding-bottom: 8px;
+	max-width: 600px;
+	width: 100%
 }
-.fincal-controls > div > mat-form-field {
-	width: 100%;
+.fincal-controls > div,
+.fincal-controls > div > mat-form-field
+.fincal-controls > div > mat-expansion-panel
+.fincal-controls > div > mat-expansion-panel > div
+.fincal-controls > div > mat-expansion-panel > div > mat-form-field { 
+	max-width:600px;
+	width:100%;
+}
+.fincal-controls > div > mat-toolbar {
+	margin-bottom:8px;
 }
 .mat-column-Balance{
 	max-width:15%;
@@ -70,49 +80,94 @@
 		{{title}} {{version}}!
 	</h2>
 </div>
-<div fxLayout="row" fxLayoutAlign="center center">
-	<button *ngIf="!accessAuthorized" mat-raised-button (click)="handleAuthClick()">
-		AUTHORIZE
-	</button>
-	<button *ngIf="accessAuthorized" mat-raised-button (click)="signOut()">
-		SIGN OUT
-	</button>
-</div>
-<div *ngIf="accessAuthorized" fxLayout="column">
-	<div class="fincal-controls" fxLayout="column" fxLayoutAlign="end stretch">
-		<div>
-			<mat-form-field>
-				<mat-select placeholder="Credit calendar (income)" [(value)]="calCredit">
-					<mat-option>-- Select a calendar --</mat-option>
-					<mat-option *ngFor="let calendar of calendars" [value]="calendar">
-						{{calendar.summary}}
-					</mat-option>
-				</mat-select>
-			</mat-form-field>
+<div fxLayout="column" fxLayoutAlign="start stretch">
+	<div fxLayout="column"fxLayoutAlign="start center">
+		<div class="fincal-controls">
+			<div fxLayout="row" fxLayoutAlign="start end">
+				<mat-toolbar>
+						<button *ngIf="!accessAuthorized" mat-raised-button (click)="handleAuthClick()">AUTHORIZE</button>
+						<ng-container *ngIf="accessAuthorized">
+							<button mat-raised-button (click)="signOut()">SIGN OUT</button>
+							<button mat-raised-button color="primary" id="update-results" (click)="updateResults()">FORECAST</button>
+						</ng-container>
+				</mat-toolbar>
+			</div>
+			<div>
+				<mat-expansion-panel>
+					<mat-expansion-panel-header>
+						<mat-panel-title>
+							Settings
+						</mat-panel-title>
+						<mat-panel-description>
+							<span>{{calCredit?.summary}} - {{calDebit?.summary}}</span>
+							<span fxFlex></span>
+							<mat-icon>settings</mat-icon>
+						</mat-panel-description>
+					</mat-expansion-panel-header>
+					<div>
+							<mat-form-field>
+								<mat-select placeholder="Credit calender (income)" [(value)]="calCredit">
+									<mat-option>-- Select a credit calendar --</mat-option>
+									<mat-option *ngFor="let calendar of calendars" [value]="calendar">
+										{{calendar.summary}}
+									</mat-option>
+								</mat-select>
+							</mat-form-field>
+						</div>
+						<div>
+							<mat-form-field>
+								<mat-select placeholder="Debit calendar (bills)" [(value)]="calDebit">
+									<mat-option>-- Select a debit calendar --</mat-option>
+									<mat-option *ngFor="let calendar of calendars" [value]="calendar">
+										{{calendar.summary}}
+									</mat-option>
+								</mat-select>
+							</mat-form-field>
+						</div>
+				</mat-expansion-panel>
+			</div>			
+			<div>
+				<mat-expansion-panel>
+					<mat-expansion-panel-header>
+						<mat-panel-title>
+							Forecast
+						</mat-panel-title>
+						<mat-panel-description>
+							{{curBalance}} - {{tarDate | date: 'MM/dd/yyyy'}}
+							<span fxFlex></span>
+							<mat-icon>date_range</mat-icon>
+						</mat-panel-description>
+					</mat-expansion-panel-header>
+					<div>
+						<mat-form-field>
+							<input matInput type="number" placeholder="Current balance" [(ngModel)]="curBalance">
+						</mat-form-field>
+					</div>
+					<div>
+						<mat-form-field>
+							<input matInput type="date" placeholder="Forecast end date" [ngModel]="tarDate | date:'yyyy-MM-dd'" (ngModelChange)="tarDate = $event">
+						</mat-form-field>
+					</div>
+				</mat-expansion-panel>
+			</div>
+			<mat-expansion-panel>
+				<mat-expansion-panel-header>
+					<mat-panel-title>
+						Filters
+					</mat-panel-title>
+					<mat-panel-description>
+						<span class="fincal-controls-filters-description">
+							{{filterConfig.NegativeBalance ? 'Negative Balance' : 'N/A'}}
+						</span>
+						<span fxFlex></span>
+						<mat-icon>filter_list</mat-icon>
+					</mat-panel-description>
+				</mat-expansion-panel-header>
+				<div class="fincal-controls-filters">
+					<mat-slide-toggle [(ngModel)]="filterConfig.NegativeBalance">Negative Balance</mat-slide-toggle>
+				</div>
+			</mat-expansion-panel>
 		</div>
-		<div>
-			<mat-form-field>
-				<mat-select placeholder="Debit calendar (bills)" [(value)]="calDebit">
-					<mat-option>-- Select a calendar --</mat-option>
-					<mat-option *ngFor="let calendar of calendars" [value]="calendar">
-						{{calendar.summary}}
-					</mat-option>
-				</mat-select>
-			</mat-form-field>
-		</div>
-		<div>
-			<mat-form-field>
-				<input matInput type="number" placeholder="Current balance (checking)" [(ngModel)]="curBalance">
-			</mat-form-field>
-		</div>
-		<div>
-			<mat-form-field>
-				<input matInput type="date" placeholder="Target forecast date" [ngModel]="tarDate | date:'yyyy-MM-dd'" (ngModelChange)="tarDate = $event">
-			</mat-form-field>
-		</div>
-	</div>
-	<div fxLayout="row" fxLayoutAlign="center center">
-		<button mat-raised-button id="update-results" (click)="updateResults()">Update</button>
 	</div>
 	<div id="results" fxFlex>
 		<mat-table #table [dataSource]="results">
