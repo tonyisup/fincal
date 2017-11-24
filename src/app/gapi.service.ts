@@ -2,6 +2,7 @@ import { Injectable, NgZone } from '@angular/core';
 import { GoogleApiService, NgGapiClientConfig } from 'ng-gapi';
 import { ReplaySubject } from 'rxjs/ReplaySubject';
 import { Subject } from 'rxjs';
+const config = require('../../config.json')
 
 @Injectable()
 export class GapiService {  
@@ -22,7 +23,7 @@ export class GapiService {
   public events$ = new ReplaySubject();
 
   public gapiClientConfig: NgGapiClientConfig = {
-    client_id: "1064226768811-ucvli8agn4dpq4mo0q19fvbplnanib5d.apps.googleusercontent.com",
+    client_id: config.gClientID,
     discoveryDocs: ["https://analyticsreporting.googleapis.com/$discovery/rest?version=v4"],
     scope: [
         "https://www.googleapis.com/auth/calendar.readonly"
