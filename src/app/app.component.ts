@@ -3,10 +3,11 @@ import { GapiService } from './gapi.service';
 import { OnInit } from '@angular/core/src/metadata/lifecycle_hooks';
 import { DataSource } from '@angular/cdk/collections';
 import { CollectionViewer } from '@angular/cdk/collections';
-import { Observable } from 'rxjs/Observable';
 import { FincalFilterConfig } from './data/fincal-filter-config';
 import { FincalTransaction } from './data/fincal-transaction';
 import { FincalTransactionType } from './data/fincal-transaction-type';
+import { Observable } from 'rxjs/Observable';
+import 'rxjs/add/observable/of';
 const { version: appVersion } = require('../../package.json')
 
 @Component({
