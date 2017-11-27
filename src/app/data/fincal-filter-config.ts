@@ -6,7 +6,6 @@ export class FincalFilterConfig {
 	public IsDisplayed(fincalTransaction:FincalTransaction): boolean {
 		let result = true;
 
-		console.log('isdisplayed', this.NegativeBalance, fincalTransaction);
 		if(this.NegativeBalance && (fincalTransaction.Balance >= 0)) result = false;
 
 		return result;

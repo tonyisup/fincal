@@ -33,7 +33,7 @@ export class AppComponent implements OnInit {
   tarDate : Date; //= new Date(parseInt(localStorage.getItem("tarDate") ||  (new Date()).getTime().toString()));
 	accessAuthorized = false;	 
   calendars = [];
-  results = new TransactionDataSource([]);
+	results = new TransactionDataSource([]);
 	
 	filterConfig = new FincalFilterConfig();
 
@@ -86,67 +86,50 @@ export class AppComponent implements OnInit {
 		let sDate = this.tarDate.toString().split('T')[0].split('-');
 		let tarDate = new Date(Date.UTC(+sDate[0], +sDate[1]-1, +sDate[2]));
 
-		this.results = new TransactionDataSource([]);
+		this.results.load([]);
+
 		this.gapiService.getUpcomingEvents(this.calCredit.id, tarDate).then(creditResponse => {
 			let credits = creditResponse.result.items;
 			this.gapiService.getUpcomingEvents(this.calDebit.id, tarDate).then(debitResponse => {
 				let debits = debitResponse.result.items;
 				this.processData(credits, debits, this.curBalance).then(transactions => {
-					this.results = new TransactionDataSource(transactions);
+					this.results.load(transactions);
 				})
 			})
 		});
 	}
 
-	processData(credits, debits, currentBalance): Promise<FincalTransaction[]> {
+	processData(credits: any[], debits: any[], currentBalance): Promise<FincalTransaction[]> {
 		return new Promise((resolve, error) => {
+			var transactions = [];
+			var dailyBalances = [];
+			var currentDate =  new Date();
 			let results: FincalTransaction[] = [];
 
-			var currentDate =  new Date();
-
-			var transactions = [];
-
-			for (var i = 0; i< credits.length ; i++ )
-			{
-				var transaction = this.getTransactionFromEvent(credits[i], true);
-				if(!transaction) continue;
-
-				transactions.push(transaction);
-			}
-
-			for (i = 0; i< debits.length ; i++ )
-			{
-				var transaction = this.getTransactionFromEvent(debits[i], false);
-				if(!transaction) continue;
-
-				transactions.push(transaction);
-			}
+			transactions.push(...credits.map(credit => this.getTransactionFromEvent(credit, true)).filter(c => c != null));
+			transactions.push(...debits.map(debit => this.getTransactionFromEvent(debit, false)).filter(d => d != null));
 
 			transactions.sort(function(a, b) {
 				return a.when.getTime() - b.when.getTime();
 			});
 
-			var dailyBalances = [];
-			for (i = 0; i < transactions.length; i++)
-			{
-				var t = transactions[i];
-				let ft = <FincalTransaction> { 
+			transactions.forEach(t => {
+				results.push(<FincalTransaction> { 
 					Balance: currentBalance,
 					Summary: t.summary,
 					When: t.when, 
 					Type: t.credit ? FincalTransactionType.Credit : FincalTransactionType.Debit
-				};
-				if(this.filterConfig.IsDisplayed(ft)) results.push(ft);
-
+				});
 				currentBalance += (t.credit ? 1 : -1) * t.amount;
-			}
+			});
+
 			resolve(results);
 		});
 	}
 
 	getTransactionFromEvent(event, isCredit) {
 		var a = this.getAmountFromEvent(event);
-		if(!a) return false;
+		if(!a) return null;
 
 		var t = 
 		{ 
@@ -168,14 +151,20 @@ export class AppComponent implements OnInit {
 	}
 }
 export class TransactionDataSource extends DataSource<FincalTransaction> {
+
 	constructor(private _data: FincalTransaction[]) {
 		super();
 		this.load(_data);
 	}
-	_transactions: Observable<FincalTransaction[]>;
+	_transactions: Observable<FincalTransaction[]> | null;
 
 	public load(fincalTransactions: FincalTransaction[]) {
-		this._transactions = Observable.of(this._data);
+		if(this._transactions == null) {
+			this._transactions = Observable.of(this._data);
+			return;
+		}
+
+		this._transactions.mergeAll()
 	}
 	connect(collectionViewer: CollectionViewer): Observable<FincalTransaction[]> {
 		return this._transactions;
