@@ -164,7 +164,7 @@
 					</mat-panel-description>
 				</mat-expansion-panel-header>
 				<div class="fincal-controls-filters">
-					<mat-slide-toggle [(ngModel)]="filterConfig.NegativeBalance">Negative Balance</mat-slide-toggle>
+					<mat-slide-toggle [(ngModel)]="filterConfig.NegativeBalance" (change)="filterChanged($event)">Negative Balance</mat-slide-toggle>
 				</div>
 			</mat-expansion-panel>
 		</div>

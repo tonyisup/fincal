@@ -8,6 +8,7 @@ import { FincalTransaction } from './data/fincal-transaction';
 import { FincalTransactionType } from './data/fincal-transaction-type';
 import { Observable } from 'rxjs/Observable';
 import 'rxjs/add/observable/of';
+import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 const { version: appVersion } = require('../../package.json')
 
 @Component({
@@ -60,11 +61,16 @@ export class AppComponent implements OnInit {
 		}));
 		this.gapiService.calendars$.subscribe(run(items => {
 			this.calendars = items;
-			let calCredit = JSON.parse(localStorage.getItem("calCredit"));
-			this.calCredit = this.calendars.find(c => c.id == calCredit.id);
-
-			let calDebit = JSON.parse(localStorage.getItem("calDebit"));
-			this.calDebit = this.calendars.find(c => c.id == calDebit.id);
+			var storedCal = localStorage.getItem("calCredit");
+			if (storedCal && (storedCal != 'undefined')) {
+				let calCredit = JSON.parse(storedCal);
+				this.calCredit = this.calendars.find(c => c.id == calCredit.id);
+			}
+			storedCal = localStorage.getItem("calDebit");
+			if (storedCal && (storedCal != 'undefined')) {
+				let calDebit = JSON.parse(localStorage.getItem("calDebit"));
+				this.calDebit = this.calendars.find(c => c.id == calDebit.id);
+			}
 		}));
 	}
 
@@ -110,7 +116,12 @@ export class AppComponent implements OnInit {
 			transactions.push(...debits.map(debit => this.getTransactionFromEvent(debit, false)).filter(d => d != null));
 
 			transactions.sort(function(a, b) {
-				return a.when.getTime() - b.when.getTime();
+				var res = (a.when.getTime() - b.when.getTime());
+				if (res) return res;
+				res = b.credit - a.credit;
+				if (res) return res;
+				res = b.amount - a.amount;
+				return res;
 			});
 
 			transactions.forEach(t => {
@@ -149,6 +160,10 @@ export class AppComponent implements OnInit {
 		else
 			return false;
 	}
+
+	filterChanged(event) {
+		this.results.filter(this.filterConfig);
+	}
 }
 export class TransactionDataSource extends DataSource<FincalTransaction> {
 
@@ -156,15 +171,15 @@ export class TransactionDataSource extends DataSource<FincalTransaction> {
 		super();
 		this.load(_data);
 	}
-	_transactions: Observable<FincalTransaction[]> | null;
+	_transactions= new BehaviorSubject<FincalTransaction[]>([]);
 
 	public load(fincalTransactions: FincalTransaction[]) {
-		if(this._transactions == null) {
-			this._transactions = Observable.of(this._data);
-			return;
-		}
+		this._data = fincalTransactions;
+		this._transactions.next(fincalTransactions);
+	}
 
-		this._transactions.mergeAll()
+	public filter(filterConfig:FincalFilterConfig) {
+		this._transactions.next(this._data.filter(d => filterConfig.IsDisplayed(d)));
 	}
 	connect(collectionViewer: CollectionViewer): Observable<FincalTransaction[]> {
 		return this._transactions;
