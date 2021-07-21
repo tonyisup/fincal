@@ -9,16 +9,17 @@ import { ForecastResultsDataSource, ForecastResultsItem } from './forecast-resul
   template: `
     <div class="mat-elevation-z8">
       <table mat-table class="full-width-table" matSort aria-label="Elements">
-        <!-- Id Column -->
-        <ng-container matColumnDef="amount">
-          <th mat-header-cell *matHeaderCellDef mat-sort-header>Amount</th>
-          <td mat-cell *matCellDef="let row" [style.color]="row.type == 0 ? 'green' : 'red'">{{row.amount}}</td>
-        </ng-container>
-    
+				
         <!-- Name Column -->
         <ng-container matColumnDef="balance">
           <th mat-header-cell *matHeaderCellDef mat-sort-header>Balance</th>
           <td mat-cell *matCellDef="let row">{{row.balance}}</td>
+        </ng-container>
+
+        <!-- Id Column -->
+        <ng-container matColumnDef="amount">
+          <th mat-header-cell *matHeaderCellDef mat-sort-header>Amount</th>
+          <td mat-cell *matCellDef="let row" [style.color]="row.type == 0 ? 'green' : 'red'">{{row.amount}}</td>
         </ng-container>
 
         <!-- Name Column -->
@@ -33,7 +34,7 @@ import { ForecastResultsDataSource, ForecastResultsItem } from './forecast-resul
         </ng-container>
     
         <tr mat-header-row *matHeaderRowDef="displayedColumns"></tr>
-        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [style.background]="row.balance < 0 ? 'red' : ''"></tr>
+        <tr mat-row *matRowDef="let row; columns: displayedColumns;" [style.background]="row.balance < 0 ? 'pink' : ''"></tr>
       </table>
     </div>
     
@@ -54,8 +55,8 @@ export class ForecastResultsComponent implements AfterViewInit, OnChanges {
 
   /** Columns displayed in the table. Columns IDs can be added, removed, or reordered. */
   displayedColumns = [
-		'amount', 
 		'balance',
+		'amount', 
 		'summary',
 		'when'
 	];

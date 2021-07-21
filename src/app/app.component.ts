@@ -44,7 +44,7 @@ export class AppComponent implements OnInit {
 
   title = 'fincal';
 	user: gapi.auth2.GoogleUser | null;
-	results: ForecastResultsItem[] | null = null;
+	results: ForecastResultsItem[] | null = [];
 	calendars: Calendar[] = [];
 
 	calCredit  : string | null = null; //= JSON.parse(localStorage.getItem("calCredit"));

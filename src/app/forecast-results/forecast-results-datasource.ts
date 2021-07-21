@@ -1,7 +1,7 @@
 import { DataSource } from '@angular/cdk/collections';
 import { MatSort } from '@angular/material/sort';
 import { debounceTime, map } from 'rxjs/operators';
-import { Observable, of as observableOf, merge } from 'rxjs';
+import { Observable, of as observableOf, merge, Subject } from 'rxjs';
 
 export enum FincalTransactionType {
 	credit,
@@ -56,6 +56,7 @@ export interface ForecastResultsItem {
  */
 export class ForecastResultsDataSource extends DataSource<ForecastResultsItem> {
   data: ForecastResultsItem[] = [];
+	data$ = new Subject<ForecastResultsItem[]>();
   sort: MatSort | undefined;
 
   constructor() {
@@ -64,6 +65,7 @@ export class ForecastResultsDataSource extends DataSource<ForecastResultsItem> {
 
 	load(d: ForecastResultsItem[]) {
 		this.data = d;
+		this.data$.next(this.data);
 	}
   /**
    * Connect this data source to the table. The table will only update when
@@ -74,7 +76,7 @@ export class ForecastResultsDataSource extends DataSource<ForecastResultsItem> {
     if (this.sort) {
       // Combine everything that affects the rendered data into one update
       // stream for the data-table to consume.
-      return merge(observableOf(this.data), this.sort.sortChange)
+      return merge(this.data$, this.sort.sortChange)
         .pipe(map(() => {
           return this.getSortedData([...this.data ]);
         }));
