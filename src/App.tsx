@@ -226,7 +226,7 @@ function App() {
 
   if (!isSignedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4">
+      <div className="flex flex-col items-center justify-center min-h-screen p-4 w-full">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center">Budget Forecast</CardTitle>
@@ -245,9 +245,8 @@ function App() {
   }
 
   return (
-    <div className="container mx-auto p-4">
+    <div className="flex flex-col items-center justify-center min-h-screen p-4 w-full">
       <header className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold">Budget Forecast</h1>
         <Button variant="outline" onClick={handleLogout}>
           <LogOut className="mr-2 h-4 w-4" /> Logout
         </Button>
