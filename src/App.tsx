@@ -8,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker"; // Assuming you have t
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
-import { Calendar as CalendarIcon, LogOut, Loader2 } from 'lucide-react';
+import { Calendar as CalendarIcon, LogOut, Loader2, Calculator, TrendingUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry } from './types/calendar';
 
@@ -20,7 +20,7 @@ const loadGapiClient = () => {
     script.onload = () => {
       window.gapi.load('client', () => {
         window.gapi.client.init({
-          apiKey: import.meta.env.VITE_GOOGLE_API_KEY, // Optional but good practice
+          apiKey: import.meta.env.GOOGLE_API_KEY, // Optional but good practice
           // discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"], // Not strictly needed with direct calls
         })
         .then(() => resolve())
@@ -284,7 +284,7 @@ function App() {
 
   if (!isSignedIn) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen p-4 w-full">
+      <div className="flex flex-col items-center min-h-screen p-4 w-full">
         <Card className="w-full max-w-md">
           <CardHeader>
             <CardTitle className="text-center">Budget Forecast</CardTitle>
@@ -303,7 +303,7 @@ function App() {
   }
 
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen p-4 w-full">
+    <div className="flex flex-col items-center min-h-screen p-4 w-full">
       <header className="flex justify-between items-center mb-6 w-full justify-center">
         <div className="flex items-center gap-4">
           {userProfile && (
@@ -369,7 +369,7 @@ function App() {
             </div>
           </div>
           <Button onClick={runForecast} disabled={isLoading || !selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance}>
-            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarIcon className="mr-2 h-4 w-4" />}
+            {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUpDown className="mr-2 h-4 w-4" />}
             Run Forecast
           </Button>
         </CardContent>
