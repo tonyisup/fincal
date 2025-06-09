@@ -32,18 +32,54 @@ const loadGapiClient = () => {
   });
 };
 
+interface UserProfile {
+  email: string;
+  picture: string;
+  name: string;
+}
+
+interface UserSettings {
+  selectedCreditCalendarId: string | undefined;
+  selectedDebitCalendarId: string | undefined;
+  startBalance: string;
+  endDate: string | undefined;
+}
 
 function App() {
   const [isSignedIn, setIsSignedIn] = useState(false);
   const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>();
-  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>();
-  const [startBalance, setStartBalance] = useState<string>("4000");
-  const [endDate, setEndDate] = useState<Date | undefined>(new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate())); // Default to ~1 month from now
+  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? JSON.parse(saved).selectedCreditCalendarId : undefined;
+  });
+  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? JSON.parse(saved).selectedDebitCalendarId : undefined;
+  });
+  const [startBalance, setStartBalance] = useState<string>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? JSON.parse(saved).startBalance : "4000";
+  });
+  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved && JSON.parse(saved).endDate ? new Date(JSON.parse(saved).endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+  });
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Save settings to localStorage whenever they change
+  useEffect(() => {
+    const settings: UserSettings = {
+      selectedCreditCalendarId,
+      selectedDebitCalendarId,
+      startBalance,
+      endDate: endDate?.toISOString(),
+    };
+    localStorage.setItem('userSettings', JSON.stringify(settings));
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate]);
 
   useEffect(() => {
     loadGapiClient().then(() => setGapiLoaded(true)).catch(console.error);
@@ -74,6 +110,24 @@ function App() {
     }
   }, [isSignedIn, gapiLoaded, fetchCalendars]);
 
+  const fetchUserProfile = useCallback(async (accessToken: string) => {
+    try {
+      const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+        },
+      });
+      const data = await response.json();
+      setUserProfile({
+        email: data.email,
+        picture: data.picture,
+        name: data.name,
+      });
+    } catch (err) {
+      console.error("Error fetching user profile:", err);
+      setError("Failed to fetch user profile.");
+    }
+  }, []);
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -81,22 +135,26 @@ function App() {
       // Store token for gapi client
       window.gapi.client.setToken({ access_token: tokenResponse.access_token });
       setIsSignedIn(true);
+      // Fetch user profile after successful login
+      await fetchUserProfile(tokenResponse.access_token);
     },
     onError: (errorResponse) => {
       console.error("Login Failed:", errorResponse);
       setError("Google login failed.");
     },
-    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly',
+    scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
   });
 
   const handleLogout = () => {
     googleLogout();
     window.gapi.client.setToken(null); // Clear token for gapi
     setIsSignedIn(false);
+    setUserProfile(null);
     setCalendars([]);
     setSelectedCreditCalendarId(undefined);
     setSelectedDebitCalendarId(undefined);
     setForecast([]);
+    // Don't clear the settings from localStorage on logout
   };
 
   const fetchEvents = async (calendarId: string, timeMin: Date, timeMax: Date): Promise<CalendarEvent[]> => {
@@ -246,32 +304,29 @@ function App() {
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen p-4 w-full">
-      <header className="flex justify-between items-center mb-6">
-        <Button variant="outline" onClick={handleLogout}>
-          <LogOut className="mr-2 h-4 w-4" /> Logout
-        </Button>
+      <header className="flex justify-between items-center mb-6 w-full justify-center">
+        <div className="flex items-center gap-4">
+          {userProfile && (
+            <div className="flex items-center gap-2">
+              <img 
+                src={userProfile.picture} 
+                alt={userProfile.name} 
+                className="w-8 h-8 rounded-full"
+              />
+              <span className="text-sm text-muted-foreground">{userProfile.email}</span>
+            </div>
+          )}
+          <Button variant="outline" onClick={handleLogout}>
+            <LogOut className="mr-2 h-4 w-4" /> Logout
+          </Button>
+        </div>
       </header>
 
       {error && <div className="mb-4 p-3 bg-red-900 border border-red-700 text-red-100 rounded-md">{error}</div>}
 
       <Card className="mb-6">
-        <CardHeader><CardTitle>Configuration</CardTitle></CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            <div>
-              <Label htmlFor="startBalance">Current Balance</Label>
-              <Input
-                id="startBalance"
-                type="number"
-                value={startBalance}
-                onChange={(e) => setStartBalance(e.target.value)}
-                placeholder="e.g., 4000"
-              />
-            </div>
-            <div>
-              <Label htmlFor="endDate">Forecast End Date</Label>
-              <DatePicker date={endDate} setDate={setEndDate} />
-            </div>
             <div>
               <Label htmlFor="creditCalendar">Select a Credit Account (Income)</Label>
               <Select onValueChange={setSelectedCreditCalendarId} value={selectedCreditCalendarId}>
@@ -298,6 +353,20 @@ function App() {
                 </SelectContent>
               </Select>
             </div>
+            <div>
+              <Label htmlFor="startBalance">Current Balance</Label>
+              <Input
+                id="startBalance"
+                type="number"
+                value={startBalance}
+                onChange={(e) => setStartBalance(e.target.value)}
+                placeholder="e.g., 4000"
+              />
+            </div>
+            <div>
+              <Label htmlFor="endDate">Forecast End Date</Label>
+              <DatePicker date={endDate} setDate={setEndDate} />
+            </div>
           </div>
           <Button onClick={runForecast} disabled={isLoading || !selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance}>
             {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <CalendarIcon className="mr-2 h-4 w-4" />}
@@ -307,38 +376,33 @@ function App() {
       </Card>
 
       {forecast.length > 0 && (
-        <Card>
-          <CardHeader><CardTitle>Forecast Results</CardTitle></CardHeader>
-          <CardContent>
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead>Balance</TableHead>
-                  <TableHead className="text-right">Amount</TableHead>
-                  <TableHead>Summary</TableHead>
-                  <TableHead className="text-right">When</TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {forecast.map((entry, index) => (
-                  <TableRow key={index}>
-                    <TableCell className="font-medium">${entry.balance.toFixed(2)}</TableCell>
-                    <TableCell className={cn(
-                      "text-right",
-                      entry.type === 'credit' ? "text-green-500" : "",
-                      entry.type === 'debit' ? "text-red-500" : "",
-                      entry.type === 'initial' ? "text-gray-500" : ""
-                    )}>
-                      {entry.type === 'initial' ? "" : `${entry.type === 'credit' ? '+' : '-'}$${entry.amount.toFixed(2)}`}
-                    </TableCell>
-                    <TableCell>{entry.summary}</TableCell>
-                    <TableCell className="text-right">{format(entry.when, 'MM-dd-yyyy')}</TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </CardContent>
-        </Card>
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>Balance</TableHead>
+              <TableHead>Amount</TableHead>
+              <TableHead>Summary</TableHead>
+              <TableHead>When</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {forecast.map((entry, index) => (
+              <TableRow key={index}>
+                <TableCell className={cn("font-medium", entry.balance <=0 ? "text-red-500" : "")}>                  
+                  ${entry.balance.toFixed(2)}
+                </TableCell>
+                <TableCell className={cn(
+                  entry.type === 'credit' ? "text-green-500" : "",
+                  entry.type === 'debit' ? "text-red-500" : ""
+                )}>
+                  {entry.type === 'initial' ? "" : `${entry.type === 'credit' ? '+' : '-'}$${entry.amount.toFixed(2)}`}
+                </TableCell>
+                <TableCell>{entry.summary}</TableCell>
+                <TableCell>{format(entry.when, 'MM-dd-yyyy')}</TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
       )}
     </div>
   );
