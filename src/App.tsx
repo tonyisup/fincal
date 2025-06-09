@@ -8,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker"; // Assuming you have t
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
-import { Calendar as CalendarIcon, LogOut, Loader2, Calculator, TrendingUpDown } from 'lucide-react';
+import { Calendar as CalendarIcon, LogOut, Loader2, Calculator, TrendingUpDown, ArrowUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry } from './types/calendar';
 
@@ -69,6 +69,13 @@ function App() {
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [sortConfig, setSortConfig] = useState<{
+    key: 'balance' | 'amount' | 'summary' | 'when' | null;
+    direction: 'asc' | 'desc';
+  }>({
+    key: null,
+    direction: 'asc'
+  });
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -278,6 +285,41 @@ function App() {
     }
   };
 
+  const handleSort = (key: 'balance' | 'amount' | 'summary' | 'when') => {
+    setSortConfig(current => ({
+      key,
+      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
+    }));
+  };
+
+  const getSortedForecast = () => {
+    if (!sortConfig.key) return forecast;
+
+    return [...forecast].sort((a, b) => {
+      let aValue = a[sortConfig.key!];
+      let bValue = b[sortConfig.key!];
+
+      // Handle date comparison
+      if (sortConfig.key === 'when') {
+        return sortConfig.direction === 'asc' 
+          ? aValue.getTime() - bValue.getTime()
+          : bValue.getTime() - aValue.getTime();
+      }
+
+      // Handle numeric comparison
+      if (sortConfig.key === 'balance' || sortConfig.key === 'amount') {
+        return sortConfig.direction === 'asc'
+          ? aValue - bValue
+          : bValue - aValue;
+      }
+
+      // Handle string comparison
+      return sortConfig.direction === 'asc'
+        ? String(aValue).localeCompare(String(bValue))
+        : String(bValue).localeCompare(String(aValue));
+    });
+  };
+
   if (!gapiLoaded) {
     return <div className="flex justify-center items-center h-screen"><Loader2 className="h-8 w-8 animate-spin" /> Loading Google API...</div>;
   }
@@ -379,14 +421,54 @@ function App() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Balance</TableHead>
-              <TableHead>Amount</TableHead>
-              <TableHead>Summary</TableHead>
-              <TableHead>When</TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('balance')}
+              >
+                <div className="flex items-center gap-1">
+                  Balance
+                  {sortConfig.key === 'balance' && (
+                    <ArrowUpDown className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('amount')}
+              >
+                <div className="flex items-center gap-1">
+                  Amount
+                  {sortConfig.key === 'amount' && (
+                    <ArrowUpDown className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('summary')}
+              >
+                <div className="flex items-center gap-1">
+                  Summary
+                  {sortConfig.key === 'summary' && (
+                    <ArrowUpDown className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
+              <TableHead 
+                className="cursor-pointer hover:bg-muted/50"
+                onClick={() => handleSort('when')}
+              >
+                <div className="flex items-center gap-1">
+                  When
+                  {sortConfig.key === 'when' && (
+                    <ArrowUpDown className="h-4 w-4" />
+                  )}
+                </div>
+              </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {forecast.map((entry, index) => (
+            {getSortedForecast().map((entry, index) => (
               <TableRow key={index}>
                 <TableCell className={cn("font-medium", entry.balance <=0 ? "text-red-500" : "")}>                  
                   ${entry.balance.toFixed(2)}
