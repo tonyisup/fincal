@@ -328,7 +328,6 @@ function App() {
             <CardTitle className="text-center">Budget Forecast</CardTitle>
           </CardHeader>
           <CardContent className="flex flex-col items-center gap-4">
-            <p>Please sign in with Google to continue.</p>
             <Button onClick={() => login()} disabled={!gapiLoaded || isLoading}>
               {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
               Sign in with Google
