@@ -138,7 +138,6 @@ function App() {
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      console.log("Login Success:", tokenResponse);
       // Store token for gapi client
       window.gapi.client.setToken({ access_token: tokenResponse.access_token });
       setIsSignedIn(true);
