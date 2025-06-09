@@ -8,7 +8,7 @@ import { DatePicker } from "@/components/ui/date-picker"; // Assuming you have t
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
-import { Calendar as CalendarIcon, LogOut, Loader2, Calculator, TrendingUpDown, ArrowUpDown } from 'lucide-react';
+import { LogOut, Loader2, TrendingUpDown, ArrowUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry } from './types/calendar';
 
@@ -296,27 +296,23 @@ function App() {
     if (!sortConfig.key) return forecast;
 
     return [...forecast].sort((a, b) => {
-      let aValue = a[sortConfig.key!];
-      let bValue = b[sortConfig.key!];
+      const key = sortConfig.key!; // We know it's not null from the check above
 
-      // Handle date comparison
-      if (sortConfig.key === 'when') {
+      if (key === 'when') {
         return sortConfig.direction === 'asc' 
-          ? aValue.getTime() - bValue.getTime()
-          : bValue.getTime() - aValue.getTime();
+          ? a.when.getTime() - b.when.getTime()
+          : b.when.getTime() - a.when.getTime();
       }
 
-      // Handle numeric comparison
-      if (sortConfig.key === 'balance' || sortConfig.key === 'amount') {
+      if (key === 'balance' || key === 'amount') {
         return sortConfig.direction === 'asc'
-          ? aValue - bValue
-          : bValue - aValue;
+          ? a[key] - b[key]
+          : b[key] - a[key];
       }
 
-      // Handle string comparison
       return sortConfig.direction === 'asc'
-        ? String(aValue).localeCompare(String(bValue))
-        : String(bValue).localeCompare(String(aValue));
+        ? String(a[key]).localeCompare(String(b[key]))
+        : String(b[key]).localeCompare(String(a[key]));
     });
   };
 
