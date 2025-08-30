@@ -17,7 +17,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
                 Forecast Your Financial Future
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
-                FinCal integrates with your Google Calendar to turn your events into a powerful financial forecast. See your projected balance with a click.
+                FinCal integrates with your Google Calendar to turn your specialized "events" into a powerful financial forecast. See your projected balance with a click.
               </p>
               <Button
                 onClick={signIn}
@@ -36,7 +36,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need to Know, In One Place</h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text/base/relaxed xl:text-xl/relaxed">
-                Connect your calendars, set your balance, and let FinCal do the rest. Financial planning has never been this simple or this integrated into your daily life.
+                Connect your calendars, set your balance, and let FinCal do the rest.
               </p>
             </div>
             <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 lg:gap-12">
@@ -52,7 +52,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
                   <TrendingUp className="h-6 w-6 text-primary" />
                   <h3 className="text-xl font-bold">Real-time Balance Forecasting</h3>
                 </div>
-                <p className="text-muted-foreground">Get an up-to-the-minute projection of your financial health based on upcoming calendar events.</p>
+                <p className="text-muted-foreground">Get a daily projection of your financial health based on upcoming calendar events.</p>
               </div>
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
