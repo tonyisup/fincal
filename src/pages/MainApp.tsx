@@ -340,11 +340,11 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
             <TableBody>
               {sortedForecast.map((entry, index) => (
                 <TableRow key={index} className={cn(
-                  entry.type === 'credit' ? 'bg-green-50' : entry.type === 'debit' ? 'bg-red-50' : '',
+                  entry.type === 'credit' ? 'bg-green-50 dark:bg-green-950/20' : entry.type === 'debit' ? 'bg-red-50 dark:bg-red-950/20' : '',
                 )}>
                   <TableCell>{format(entry.when, 'MMM dd, yyyy')}</TableCell>
                   <TableCell>{entry.summary}</TableCell>
-                  <TableCell className={entry.type === 'debit' ? 'text-red-600' : 'text-green-600'}>
+                  <TableCell className={entry.type === 'debit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
                     {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
                   </TableCell>
                   <TableCell>${entry.balance.toFixed(2)}</TableCell>
