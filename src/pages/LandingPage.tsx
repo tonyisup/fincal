@@ -1,6 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle2, TrendingUp, CalendarCheck2, Wallet } from "lucide-react";
+import { TrendingUp, CalendarCheck2, Wallet } from "lucide-react";
 
 interface LandingPageProps {
   signIn: () => void;
@@ -36,7 +35,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need to Know, In One Place</h2>
-              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
+              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text/base/relaxed xl:text-xl/relaxed">
                 Connect your calendars, set your balance, and let FinCal do the rest. Financial planning has never been this simple or this integrated into your daily life.
               </p>
             </div>
