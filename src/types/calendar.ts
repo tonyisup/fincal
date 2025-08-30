@@ -25,3 +25,9 @@ export interface ForecastEntry {
   when: Date;
   type: 'credit' | 'debit' | 'initial';
 }
+
+export interface UserProfile {
+  email: string;
+  picture: string;
+  name: string;
+}

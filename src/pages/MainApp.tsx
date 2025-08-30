@@ -1,5 +1,4 @@
 import { useState, useEffect, useCallback } from 'react';
-import { googleLogout } from '@react-oauth/google';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,7 +7,7 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
-import { LogOut, Loader2, TrendingUpDown, ArrowUpDown } from 'lucide-react';
+import { LogOut, Loader2, ArrowUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 
@@ -201,152 +200,160 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     }));
   };
 
-  const getSortedForecast = () => {
-    if (!sortConfig.key) return forecast;
+  const sortedForecast = [...forecast].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    const directionMultiplier = sortConfig.direction === 'asc' ? 1 : -1;
 
-    return [...forecast].sort((a, b) => {
-      const key = sortConfig.key!;
-
-      if (key === 'when') {
-        return sortConfig.direction === 'asc'
-          ? a.when.getTime() - b.when.getTime()
-          : b.when.getTime() - a.when.getTime();
-      }
-
-      if (key === 'balance' || key === 'amount') {
-        return sortConfig.direction === 'asc'
-          ? a[key] - b[key]
-          : b[key] - a[key];
-      }
-
-      return sortConfig.direction === 'asc'
-        ? String(a[key]).localeCompare(String(b[key]))
-        : String(b[key]).localeCompare(String(a[key]));
-    });
-  };
+    switch (sortConfig.key) {
+      case 'balance':
+        return (a.balance - b.balance) * directionMultiplier;
+      case 'amount':
+        return (a.amount - b.amount) * directionMultiplier;
+      case 'summary':
+        return a.summary.localeCompare(b.summary) * directionMultiplier;
+      case 'when':
+        return (a.when.getTime() - b.when.getTime()) * directionMultiplier;
+      default:
+        return 0;
+    }
+  });
 
   return (
-    <div className="flex flex-col items-center min-h-screen p-4 w-full">
-      <header className="flex justify-between items-center mb-6 w-full max-w-6xl">
-        <h1 className="text-2xl font-bold">FinCal Dashboard</h1>
+    <div className="container mx-auto p-4 space-y-6">
+      <div className="flex justify-between items-center">
+        <h1 className="text-3xl font-bold">FinCal</h1>
         <div className="flex items-center gap-4">
           {userProfile && (
             <div className="flex items-center gap-2">
-              <img
-                src={userProfile.picture}
-                alt={userProfile.name}
-                className="w-8 h-8 rounded-full"
-              />
-              <span className="text-sm text-muted-foreground">{userProfile.email}</span>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src={userProfile.picture} alt={userProfile.name} className="w-8 h-8 rounded-full" />
+              <span className="text-sm">{userProfile.name}</span>
             </div>
           )}
-          <Button variant="outline" onClick={handleLogout}>
-            <LogOut className="mr-2 h-4 w-4" /> Logout
+          <Button onClick={handleLogout} variant="outline">
+            <LogOut className="w-4 h-4 mr-2" />
+            Logout
           </Button>
         </div>
-      </header>
-
-      {error && <div className="mb-4 p-3 bg-red-900 border border-red-700 text-red-100 rounded-md w-full max-w-6xl">{error}</div>}
-
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 w-full max-w-6xl">
-        <div className="lg:col-span-1 space-y-6">
-          <Card>
-            <CardContent className="pt-6 space-y-4">
-              <div>
-                <Label htmlFor="creditCalendar">Select a Credit Account (Income)</Label>
-                <Select onValueChange={setSelectedCreditCalendarId} value={selectedCreditCalendarId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select income calendar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {calendars.map(cal => (
-                      <SelectItem key={cal.id} value={cal.id}>{cal.summary}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="debitCalendar">Select a Debit Account (Bills)</Label>
-                <Select onValueChange={setSelectedDebitCalendarId} value={selectedDebitCalendarId}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Select bills calendar" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {calendars.map(cal => (
-                      <SelectItem key={cal.id} value={cal.id}>{cal.summary}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div>
-                <Label htmlFor="startBalance">Current Balance</Label>
-                <Input
-                  id="startBalance"
-                  type="number"
-                  value={startBalance}
-                  onChange={(e) => setStartBalance(e.target.value)}
-                  placeholder="e.g., 4000"
-                />
-              </div>
-              <div>
-                <Label htmlFor="endDate">Forecast End Date</Label>
-                <DatePicker date={endDate} setDate={setEndDate} />
-              </div>
-              <Button onClick={runForecast} disabled={isLoading || !selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance} className="w-full">
-                {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <TrendingUpDown className="mr-2 h-4 w-4" />}
-                Run Forecast
-              </Button>
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="lg:col-span-2">
-          {forecast.length > 0 ? (
-            <Table>
-              <TableHeader>
-                <TableRow>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('when')}>
-                    <div className="flex items-center gap-1">When <ArrowUpDown className="h-4 w-4" /></div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('summary')}>
-                    <div className="flex items-center gap-1">Summary <ArrowUpDown className="h-4 w-4" /></div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('amount')}>
-                    <div className="flex items-center gap-1">Amount <ArrowUpDown className="h-4 w-4" /></div>
-                  </TableHead>
-                  <TableHead className="cursor-pointer hover:bg-muted/50" onClick={() => handleSort('balance')}>
-                    <div className="flex items-center gap-1">Balance <ArrowUpDown className="h-4 w-4" /></div>
-                  </TableHead>
-                </TableRow>
-              </TableHeader>
-              <TableBody>
-                {getSortedForecast().map((entry, index) => (
-                  <TableRow key={index}>
-                    <TableCell>{format(entry.when, 'MM-dd-yyyy')}</TableCell>
-                    <TableCell>{entry.summary}</TableCell>
-                    <TableCell className={cn(
-                      entry.type === 'credit' ? "text-green-500" : "",
-                      entry.type === 'debit' ? "text-red-500" : ""
-                    )}>
-                      {entry.type === 'initial' ? "" : `${entry.type === 'credit' ? '+' : '-'}$${entry.amount.toFixed(2)}`}
-                    </TableCell>
-                    <TableCell className={cn("font-medium", entry.balance <= 0 ? "text-red-500" : "")}>
-                      ${entry.balance.toFixed(2)}
-                    </TableCell>
-                  </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          ) : (
-            <Card className="flex flex-col items-center justify-center h-full p-8 text-center">
-                <CardContent>
-                    <h3 className="text-xl font-semibold">Welcome to FinCal</h3>
-                    <p className="text-muted-foreground mt-2">Your financial forecast will appear here once you've configured your settings and run the forecast.</p>
-                </CardContent>
-            </Card>
-          )}
-        </div>
       </div>
+
+      {error && (
+        <div className="bg-red-100 text-red-700 border border-red-200 rounded p-3">
+          {error}
+        </div>
+      )}
+
+      <Card>
+        <CardContent className="space-y-6 pt-6">
+          <div className="grid md:grid-cols-2 gap-4">
+            <div className="space-y-2">
+              <Label htmlFor="start-balance">Start Balance</Label>
+              <Input
+                id="start-balance"
+                type="number"
+                placeholder="Enter starting balance"
+                value={startBalance}
+                onChange={(e) => setStartBalance(e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="end-date">Select End Date</Label>
+              <DatePicker date={endDate} setDate={setEndDate} />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="credit-calendar">Income Calendar</Label>
+              <Select value={selectedCreditCalendarId} onValueChange={setSelectedCreditCalendarId}>
+                <SelectTrigger id="credit-calendar">
+                  <SelectValue placeholder="Select income calendar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {calendars.map(calendar => (
+                    <SelectItem key={calendar.id} value={calendar.id}>{calendar.summary}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="debit-calendar">Expense Calendar</Label>
+              <Select value={selectedDebitCalendarId} onValueChange={setSelectedDebitCalendarId}>
+                <SelectTrigger id="debit-calendar">
+                  <SelectValue placeholder="Select expense calendar" />
+                </SelectTrigger>
+                <SelectContent>
+                  {calendars.map(calendar => (
+                    <SelectItem key={calendar.id} value={calendar.id}>{calendar.summary}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+          </div>
+
+          <div className="flex gap-4 items-end">
+            <Button onClick={runForecast} disabled={isLoading}>
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Forecast
+                </>
+              ) : (
+                'Run Forecast'
+              )}
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardContent className="pt-6">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead onClick={() => handleSort('when')} className="cursor-pointer select-none">
+                  <div className="flex items-center gap-2">
+                    When
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </TableHead>
+                <TableHead onClick={() => handleSort('summary')} className="cursor-pointer select-none">
+                  <div className="flex items-center gap-2">
+                    Summary
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </TableHead>
+                <TableHead onClick={() => handleSort('amount')} className="cursor-pointer select-none">
+                  <div className="flex items-center gap-2">
+                    Amount
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </TableHead>
+                <TableHead onClick={() => handleSort('balance')} className="cursor-pointer select-none">
+                  <div className="flex items-center gap-2">
+                    Balance
+                    <ArrowUpDown className="w-4 h-4" />
+                  </div>
+                </TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sortedForecast.map((entry, index) => (
+                <TableRow key={index} className={cn(
+                  entry.type === 'credit' ? 'bg-green-50' : entry.type === 'debit' ? 'bg-red-50' : '',
+                )}>
+                  <TableCell>{format(entry.when, 'MMM dd, yyyy')}</TableCell>
+                  <TableCell>{entry.summary}</TableCell>
+                  <TableCell className={entry.type === 'debit' ? 'text-red-600' : 'text-green-600'}>
+                    {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell>${entry.balance.toFixed(2)}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
     </div>
   );
 }
