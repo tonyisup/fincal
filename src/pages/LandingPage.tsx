@@ -7,11 +7,11 @@ interface LandingPageProps {
 
 export function LandingPage({ signIn }: LandingPageProps) {
   return (
-    <div className="flex flex-col min-h-screen">
-      <main className="flex-1">
+    <div className="flex flex-col min-h-screen w-full">
+      <main className="flex-1 w-full max-w-7xl mx-auto">
         {/* Hero Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-r from-purple-400 via-pink-500 to-red-500 text-white">
-          <div className="container px-4 md:px-6">
+          <div className="w-full max-w-6xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center space-y-4 text-center">
               <h1 className="text-3xl font-bold tracking-tighter sm:text-4xl md:text-5xl lg:text-6xl/none">
                 Forecast Your Financial Future
@@ -31,7 +31,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
 
         {/* Features Section */}
         <section id="features" className="w-full py-12 md:py-24 lg:py-32">
-          <div className="container px-4 md:px-6">
+          <div className="w-full max-w-6xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need to Know, In One Place</h2>
@@ -67,7 +67,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
 
         {/* How It Works Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 bg-muted">
-          <div className="container grid items-center justify-center gap-4 px-4 text-center md:px-6">
+          <div className="w-full max-w-6xl mx-auto grid items-center justify-center gap-4 px-4 text-center md:px-6">
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">How It Works</h2>
               <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
@@ -94,7 +94,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
           </div>
         </section>
       </main>
-      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center px-4 md:px-6 border-t">
+      <footer className="flex flex-col gap-2 sm:flex-row py-6 w-full shrink-0 items-center justify-center px-4 md:px-6 border-t">
         <p className="text-xs text-muted-foreground">&copy; {new Date().getFullYear()} FinCal. All rights reserved.</p>
       </footer>
     </div>
