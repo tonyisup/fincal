@@ -300,7 +300,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               <Checkbox
                 id="start-tomorrow"
                 checked={startFromTomorrow}
-                onCheckedChange={setStartFromTomorrow}
+                onCheckedChange={(checked) => setStartFromTomorrow(Boolean(checked))}
               />
               <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
             </div>
