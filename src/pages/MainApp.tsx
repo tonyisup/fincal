@@ -3,10 +3,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Switch } from "@/components/ui/switch";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { format, startOfDay, endOfDay, isBefore, isAfter } from 'date-fns';
+import { format, startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
 import { LogOut, Loader2, ArrowUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
@@ -51,6 +52,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     key: null,
     direction: 'asc'
   });
+  const [startFromTomorrow, setStartFromTomorrow] = useState(false);
 
   // Save settings to localStorage whenever they change
   useEffect(() => {
@@ -123,7 +125,9 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
       return;
     }
 
-    const forecastStartDate = startOfDay(new Date());
+    const forecastStartDate = startFromTomorrow
+      ? startOfDay(addDays(new Date(), 1))
+      : startOfDay(new Date());
     const forecastEndDate = endOfDay(endDate);
 
     if (isBefore(forecastEndDate, forecastStartDate)) {
@@ -292,6 +296,14 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           </div>
 
           <div className="flex gap-4 items-end">
+            <div className="flex items-center space-x-2">
+              <Switch
+                id="start-tomorrow"
+                checked={startFromTomorrow}
+                onCheckedChange={setStartFromTomorrow}
+              />
+              <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
+            </div>
             <Button onClick={runForecast} disabled={isLoading}>
               {isLoading ? (
                 <>
