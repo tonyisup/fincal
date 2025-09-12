@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Switch } from "@/components/ui/switch";
+import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
@@ -297,10 +297,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
           <div className="flex gap-4 items-end">
             <div className="flex items-center space-x-2">
-              <Switch
+              <Checkbox
                 id="start-tomorrow"
                 checked={startFromTomorrow}
-                onCheckedChange={setStartFromTomorrow}
+                onCheckedChange={(checked) => setStartFromTomorrow(Boolean(checked))}
               />
               <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
             </div>
