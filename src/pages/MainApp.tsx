@@ -8,9 +8,10 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
-import { LogOut, Loader2, ArrowUpDown } from 'lucide-react';
+import { LogOut, Loader2, ArrowUpDown, Sun } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
+import { useTheme } from '@/providers/theme-provider';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -52,8 +53,8 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     key: null,
     direction: 'asc'
   });
-  const [startFromTomorrow, setStartFromTomorrow] = useState(false);
-
+  const [startFromTomorrow, setStartFromTomorrow] = useState(true);
+  const { theme, setTheme } = useTheme();
   // Save settings to localStorage whenever they change
   useEffect(() => {
     const settings: UserSettings = {
@@ -225,7 +226,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   return (
     <div className="container mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
-        <h1 className="text-3xl font-bold">FinCal</h1>
+        <h1 className="text-xl font-bold">Fin Cal</h1>
         <div className="flex items-center gap-4">
           {userProfile && (
             <div className="flex items-center gap-2">
@@ -234,6 +235,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               <span className="text-sm">{userProfile.name}</span>
             </div>
           )}
+          <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="outline">
+            <Sun className="w-4 h-4 mr-2" />
+            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+          </Button>
           <Button onClick={handleLogout} variant="outline">
             <LogOut className="w-4 h-4 mr-2" />
             Logout
@@ -304,6 +309,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               />
               <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
             </div>
+          </div>
             <Button onClick={runForecast} disabled={isLoading}>
               {isLoading ? (
                 <>
@@ -314,7 +320,6 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                 'Run Forecast'
               )}
             </Button>
-          </div>
         </CardContent>
       </Card>
 
