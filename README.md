@@ -1,5 +1,7 @@
 # Financial Calendar (FinCal)
 
+https://fincal.vercel.app/
+
 A React application that helps you forecast your financial future by integrating with Google Calendar. Track your income and expenses through calendar events and get a clear view of your projected balance.
 
 ## Features
