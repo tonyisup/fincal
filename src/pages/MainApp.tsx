@@ -7,12 +7,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
-import { Loader2, LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
+import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut } from 'lucide-react';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { ForecastCalendar } from '@/components/ForecastCalendar';
 import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -336,11 +344,32 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         <h1 className="text-xl font-bold">Fin Cal</h1>
         <div className="flex items-center gap-4">
           {userProfile && (
-            <div className="flex items-center gap-2">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img src={userProfile.picture} alt={userProfile.name} className="w-8 h-8 rounded-full" />
-              <span className="text-sm">{userProfile.name}</span>
-            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <button className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-ring rounded-md">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={userProfile.picture} alt={userProfile.name} className="w-8 h-8 rounded-full" />
+                  <span className="text-sm">{userProfile.name}</span>
+                </button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuLabel>
+                  <div className="flex flex-col space-y-1">
+                    <p className="text-sm font-medium leading-none">{userProfile.name}</p>
+                    <p className="text-xs leading-none text-muted-foreground">{userProfile.email}</p>
+                  </div>
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={handleLogout}
+                  variant="destructive"
+                  className="cursor-pointer"
+                >
+                  <LogOut className="mr-2 h-4 w-4" />
+                  <span>Log out</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           )}
           <ModeToggle />
         </div>

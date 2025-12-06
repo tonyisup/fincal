@@ -128,8 +128,8 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
   const height = 100;
   const width = 1000; // Arbitrary units for SVG coordinate system
 
-  // Calculate SVG Path
-  const pathData = useMemo(() => {
+  // Calculate SVG Path and Vertical Lines
+  const { pathData, verticalLines } = useMemo(() => {
     const getY = (balance: number) => {
       // Invert Y because SVG coordinates go down
       // Scale balance between min and max
@@ -142,6 +142,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     };
 
     let d = `M 0 ${getY(week.startBalance)}`;
+    const verticalLinesData: Array<{ x: number; y1: number; y2: number; isDebit: boolean }> = [];
 
     let currentBalance = week.startBalance;
 
@@ -163,10 +164,16 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     // Process transactions day by day, distributing them evenly within each day
     week.days.forEach((_, dayIndex) => {
       const dayTransactions = transactionsByDay.get(dayIndex) || [];
-      if (dayTransactions.length === 0) return;
-
+      
       const dayStartX = (dayIndex / 7) * width;
       const dayEndX = ((dayIndex + 1) / 7) * width;
+      
+      if (dayTransactions.length === 0) {
+        // No transactions in this day - continue horizontally at current balance
+        d += ` L ${dayEndX} ${getY(currentBalance)}`;
+        return;
+      }
+
       const dayWidth = dayEndX - dayStartX;
       const spacing = dayWidth / (dayTransactions.length + 1);
 
@@ -175,19 +182,30 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
         const yPrev = getY(currentBalance);
         const yNew = getY(tx.balance);
 
-        // Draw line to the time of transaction at previous balance (step function)
+        // Draw horizontal line to the time of transaction at previous balance (step function)
         d += ` L ${x} ${yPrev}`;
-        // Draw vertical line to new balance
-        d += ` L ${x} ${yNew}`;
+        
+        // Store vertical line separately - will be drawn on top with appropriate color
+        verticalLinesData.push({
+          x,
+          y1: yPrev,
+          y2: yNew,
+          isDebit: tx.type === 'debit'
+        });
 
+        // Include vertical line in path for continuity (will be overridden by colored line above)
+        d += ` L ${x} ${yNew}`;
         currentBalance = tx.balance;
       });
+      
+      // After all transactions in the day, continue to end of day at current balance
+      d += ` L ${dayEndX} ${getY(currentBalance)}`;
     });
 
     // Draw to end of week
     d += ` L ${width} ${getY(currentBalance)}`;
 
-    return d;
+    return { pathData: d, verticalLines: verticalLinesData };
   }, [week, minBalance, maxBalance]);
 
   // Calculate Gradient Zero-Crossing
@@ -257,6 +275,24 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
             strokeLinecap="round"
             filter={`url(#shadow-${uniqueId})`}
           />
+          {/* Vertical lines for transactions - red for debits, green for credits */}
+          {verticalLines.map((line, idx) => {
+            console.log('vertical line', line, idx)
+            // Only render if line has actual length
+            if (Math.abs(line.y2 - line.y1) < 0.1) return null;
+            return (
+              <line
+                key={`vline-${idx}`}
+                x1={line.x}
+                y1={line.y1}
+                x2={line.x}
+                y2={line.y2}
+                stroke={line.isDebit ? "#ef4444" : "#22c55e"}
+                strokeWidth="5"
+                opacity="1"
+              />
+            );
+          })}
         </svg>
       </div>
     </div>
