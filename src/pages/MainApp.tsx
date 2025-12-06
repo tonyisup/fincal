@@ -7,11 +7,12 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
-import { Loader2 } from 'lucide-react';
+import { Loader2, LayoutGrid, Calendar as CalendarIcon } from 'lucide-react';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
-import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
+import { ForecastCalendar } from '@/components/ForecastCalendar';
+import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -19,12 +20,20 @@ interface UserSettings {
   startBalance: string;
   endDate: string | undefined;
   autoRun: boolean;
+  weekStartDay: 0 | 1;
 }
 
 interface MainAppProps {
   userProfile: UserProfile | null;
   handleLogout: () => void;
 }
+
+// const mockData = [
+//   { balance: 2000, amount: 0, summary: "Start", when: new Date(), type: 'initial' },
+//   { balance: 1500, amount: 500, summary: "Groceries", when: new Date(new Date().getTime() + 86400000), type: 'debit' },
+//   { balance: -200, amount: 2000, summary: "Rent", when: new Date(new Date().getTime() + 86400000 * 5), type: 'debit' },
+//   { balance: 500, amount: 700, summary: "Deposit", when: new Date(new Date().getTime() + 86400000 * 6), type: 'credit' },
+// ];
 
 export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
@@ -44,6 +53,12 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     const saved = localStorage.getItem('userSettings');
     return saved && JSON.parse(saved).endDate ? new Date(JSON.parse(saved).endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
   });
+  const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? JSON.parse(saved).weekStartDay ?? 0 : 0;
+  });
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
+
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -74,6 +89,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           if (parsed.startBalance !== undefined) setStartBalance(parsed.startBalance);
           if (parsed.endDate) setEndDate(new Date(parsed.endDate));
           if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
+          if (parsed.weekStartDay !== undefined) setWeekStartDay(parsed.weekStartDay);
         } catch (e) {
           console.error("Failed to parse user settings", e);
         }
@@ -91,13 +107,14 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         startBalance,
         endDate: endDate?.toISOString(),
         autoRun,
+        weekStartDay,
       };
       localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
 
       // Also update global settings as a fallback/cache for initial load
       localStorage.setItem('userSettings', JSON.stringify(settings));
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, autoRun, userProfile, settingsLoaded]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, autoRun, weekStartDay, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     try {
@@ -381,6 +398,19 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                 </SelectContent>
               </Select>
             </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="week-start">Start of Week</Label>
+              <Select value={weekStartDay.toString()} onValueChange={(v) => setWeekStartDay(parseInt(v) as 0 | 1)}>
+                <SelectTrigger id="week-start">
+                  <SelectValue placeholder="Select start of week" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="0">Sunday</SelectItem>
+                  <SelectItem value="1">Monday</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
           </div>
 
           <div className="flex gap-4 items-end flex-wrap">
@@ -414,11 +444,39 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         </CardContent>
       </Card>
 
-      <ForecastTable 
-        sortedForecast={sortedForecast}
-        handleSort={handleSort}
-        sortConfig={sortConfig}
-      />
+      <div className="flex justify-end gap-2">
+        <Button
+          variant={viewMode === 'table' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('table')}
+        >
+          <LayoutGrid className="w-4 h-4 mr-2" />
+          Table
+        </Button>
+        <Button
+          variant={viewMode === 'calendar' ? 'default' : 'outline'}
+          size="sm"
+          onClick={() => setViewMode('calendar')}
+        >
+          <CalendarIcon className="w-4 h-4 mr-2" />
+          Calendar
+        </Button>
+      </div>
+
+      {viewMode === 'table' ? (      
+        <ForecastTable 
+          sortedForecast={sortedForecast}
+          handleSort={handleSort}
+          sortConfig={sortConfig}
+        />
+      ) : (
+        <ForecastCalendar
+          forecast={forecast}
+          weekStartDay={weekStartDay}
+          startDate={sortedForecast.length > 0 ? sortedForecast[0].when : new Date()}
+          endDate={endDate || new Date()}
+        />
+      )}
     </div>
   );
 }

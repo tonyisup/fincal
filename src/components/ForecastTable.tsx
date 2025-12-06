@@ -61,15 +61,13 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig }: Foreca
           </TableHeader>
           <TableBody>
             {sortedForecast.map((entry, index) => (
-              <TableRow key={index} className={cn(
-                entry.type === 'credit' ? 'bg-green-50 dark:bg-green-950/20' : entry.type === 'debit' ? 'bg-red-50 dark:bg-red-950/20' : '',
-              )}>
+              <TableRow key={index}>
                 <TableCell>{format(entry.when, 'MMM dd, yyyy')}</TableCell>
                 <TableCell>{entry.summary}</TableCell>
-                <TableCell className={entry.type === 'debit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
+                <TableCell className={entry.type === 'debit' ? 'text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-950/20' : 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-950/20'}>
                   {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
                 </TableCell>
-                <TableCell>${entry.balance.toFixed(2)}</TableCell>
+                <TableCell className={entry.balance <= 0 ? 'text-red-700 dark:text-red-300 bg-red-50 dark:bg-red-950/20' : 'text-green-700 dark:text-green-300 bg-green-50 dark:bg-green-950/20' }>${entry.balance.toFixed(2)}</TableCell>
               </TableRow>
             ))}
           </TableBody>

@@ -33,6 +33,7 @@ function App() {
 
   useEffect(() => {
     loadGapiClient().then(() => setGapiLoaded(true)).catch(console.error);
+    // setGapiLoaded(true); // Fake load for test
   }, []);
 
   const fetchUserProfile = useCallback(async (accessToken: string) => {
@@ -80,6 +81,7 @@ function App() {
     // Keep user settings in localStorage
   };
 
+  // Bypass for testing
   if (!gapiLoaded) {
     return (
       <div className="flex justify-center items-center h-screen">
@@ -97,15 +99,11 @@ function App() {
     );
   }
 
-  return (
-    <>
-      {isSignedIn && gapiLoaded ? (
-        <MainApp userProfile={userProfile} handleLogout={handleLogout} />
-      ) : (
-        <LandingPage signIn={() => login()} />
-      )}
-    </>
-  );
+  if (isSignedIn && gapiLoaded) {
+    return <MainApp userProfile={userProfile} handleLogout={handleLogout} />;
+  }
+
+  return (<LandingPage signIn={() => login()} />);
 }
 
 export default App;
