@@ -55,16 +55,43 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   });
   const [startFromTomorrow, setStartFromTomorrow] = useState(true);
   const { theme, setTheme } = useTheme();
-  // Save settings to localStorage whenever they change
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+
+  // Load user-specific settings when userProfile is available
   useEffect(() => {
-    const settings: UserSettings = {
-      selectedCreditCalendarId,
-      selectedDebitCalendarId,
-      startBalance,
-      endDate: endDate?.toISOString(),
-    };
-    localStorage.setItem('userSettings', JSON.stringify(settings));
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate]);
+    if (userProfile?.email) {
+      const key = `userSettings_${userProfile.email}`;
+      const saved = localStorage.getItem(key);
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (parsed.selectedCreditCalendarId) setSelectedCreditCalendarId(parsed.selectedCreditCalendarId);
+          if (parsed.selectedDebitCalendarId) setSelectedDebitCalendarId(parsed.selectedDebitCalendarId);
+          if (parsed.startBalance !== undefined) setStartBalance(parsed.startBalance);
+          if (parsed.endDate) setEndDate(new Date(parsed.endDate));
+        } catch (e) {
+          console.error("Failed to parse user settings", e);
+        }
+      }
+      setSettingsLoaded(true);
+    }
+  }, [userProfile]);
+
+  // Save settings to localStorage whenever they change (scoped to user)
+  useEffect(() => {
+    if (userProfile?.email && settingsLoaded) {
+      const settings: UserSettings = {
+        selectedCreditCalendarId,
+        selectedDebitCalendarId,
+        startBalance,
+        endDate: endDate?.toISOString(),
+      };
+      localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
+
+      // Also update global settings as a fallback/cache for initial load
+      localStorage.setItem('userSettings', JSON.stringify(settings));
+    }
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     try {
@@ -273,7 +300,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
             <div className="space-y-2">
               <Label htmlFor="credit-calendar">Income Calendar</Label>
-              <Select value={selectedCreditCalendarId} onValueChange={setSelectedCreditCalendarId}>
+              <Select key={`credit-${calendars.length}`} value={selectedCreditCalendarId} onValueChange={setSelectedCreditCalendarId}>
                 <SelectTrigger id="credit-calendar">
                   <SelectValue placeholder="Select income calendar" />
                 </SelectTrigger>
@@ -287,7 +314,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
             <div className="space-y-2">
               <Label htmlFor="debit-calendar">Expense Calendar</Label>
-              <Select value={selectedDebitCalendarId} onValueChange={setSelectedDebitCalendarId}>
+              <Select key={`debit-${calendars.length}`} value={selectedDebitCalendarId} onValueChange={setSelectedDebitCalendarId}>
                 <SelectTrigger id="debit-calendar">
                   <SelectValue placeholder="Select expense calendar" />
                 </SelectTrigger>
