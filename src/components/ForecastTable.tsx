@@ -2,7 +2,6 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from 'date-fns';
 import { SortAsc, SortDesc } from 'lucide-react';
-import { cn } from '@/lib/utils';
 import type { ForecastEntry } from '../types/calendar';
 
 export type SortDirection = 'asc' | 'desc' | null;
