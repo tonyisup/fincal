@@ -18,8 +18,8 @@ const loadGapiClient = () => {
           apiKey: import.meta.env.GOOGLE_API_KEY,
           // discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
         })
-        .then(() => resolve())
-        .catch((err) => reject(err));
+          .then(() => resolve())
+          .catch((err) => reject(err));
       });
     };
     script.onerror = (err) => reject(err);
@@ -41,6 +41,7 @@ interface AuthContextType {
   isRestoringSession: boolean;
   login: () => void;
   handleLogout: () => void;
+  error: string | null;
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -55,9 +56,17 @@ export const useAuth = () => {
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isRestoringSession, gapiLoaded } = useAuth();
+  const { isSignedIn, isRestoringSession, gapiLoaded, login, error } = useAuth();
+  const [hasRequestedLogin, setHasRequestedLogin] = useState(false);
 
-  if (!gapiLoaded || isRestoringSession || !isSignedIn) {
+  useEffect(() => {
+    if (!isRestoringSession && gapiLoaded && !isSignedIn && !hasRequestedLogin) {
+      setHasRequestedLogin(true);
+      login();
+    }
+  }, [isRestoringSession, gapiLoaded, isSignedIn, hasRequestedLogin, login]);
+
+  if (!gapiLoaded || isRestoringSession) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Spinner />
@@ -65,8 +74,19 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (!isSignedIn) {
+  // If error occurred (e.g. user cancelled login), redirect to landing
+  if (error && !isSignedIn) {
     return <Navigate to="/" replace />;
+  }
+
+  if (!isSignedIn) {
+    // Show spinner while waiting for login interaction
+    return (
+      <div className="flex justify-center items-center h-screen flex-col gap-4">
+        <Spinner />
+        <p className="text-muted-foreground">Please sign in to continue...</p>
+      </div>
+    );
   }
 
   return <>{children}</>;
@@ -95,7 +115,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
         if (storedToken && storedProfile && gapiLoaded) {
           const profile: UserProfile = JSON.parse(storedProfile);
-          
+
           // Set the token in gapi client
           if (window.gapi && window.gapi.client) {
             window.gapi.client.setToken({ access_token: storedToken });
@@ -137,8 +157,6 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
     if (gapiLoaded) {
       restoreSession();
-    } else {
-      setIsRestoringSession(false);
     }
   }, [gapiLoaded]);
 
@@ -159,7 +177,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         name: data.name,
       };
       setUserProfile(profile);
-      
+
       // Store in localStorage for persistence
       localStorage.setItem(STORAGE_KEYS.USER_PROFILE, JSON.stringify(profile));
     } catch (err) {
@@ -171,10 +189,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       const accessToken = tokenResponse.access_token;
-      
+
       // Store token in localStorage for persistence
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
-      
+
       window.gapi.client.setToken({ access_token: accessToken });
       setIsSignedIn(true);
       await fetchUserProfile(accessToken);
@@ -194,7 +212,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
     setIsSignedIn(false);
     setUserProfile(null);
-    
+
     // Clear stored authentication data
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
@@ -209,15 +227,10 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     isRestoringSession,
     login,
     handleLogout,
+    error,
   };
 
-  if (error) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <p className="text-red-500">{error}</p>
-      </div>
-    );
-  }
+
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
