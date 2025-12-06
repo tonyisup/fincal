@@ -18,6 +18,7 @@ interface UserSettings {
   selectedDebitCalendarId: string | undefined;
   startBalance: string;
   endDate: string | undefined;
+  autoRun: boolean;
 }
 
 interface MainAppProps {
@@ -54,7 +55,11 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     direction: 'asc'
   });
   const [startFromTomorrow, setStartFromTomorrow] = useState(true);
-  const [settingsLoaded, setSettingsLoaded] = useState(false)
+  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [autoRun, setAutoRun] = useState<boolean>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? !!JSON.parse(saved).autoRun : false;
+  });
 
   // Load user-specific settings when userProfile is available
   useEffect(() => {
@@ -68,6 +73,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           if (parsed.selectedDebitCalendarId) setSelectedDebitCalendarId(parsed.selectedDebitCalendarId);
           if (parsed.startBalance !== undefined) setStartBalance(parsed.startBalance);
           if (parsed.endDate) setEndDate(new Date(parsed.endDate));
+          if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
         } catch (e) {
           console.error("Failed to parse user settings", e);
         }
@@ -84,13 +90,14 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         selectedDebitCalendarId,
         startBalance,
         endDate: endDate?.toISOString(),
+        autoRun,
       };
       localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
 
       // Also update global settings as a fallback/cache for initial load
       localStorage.setItem('userSettings', JSON.stringify(settings));
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, userProfile, settingsLoaded]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, autoRun, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     try {
@@ -114,7 +121,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     fetchCalendars();
   }, [fetchCalendars]);
 
-  const fetchEvents = async (calendarId: string, timeMin: Date, timeMax: Date): Promise<CalendarEvent[]> => {
+  const fetchEvents = useCallback(async (calendarId: string, timeMin: Date, timeMax: Date): Promise<CalendarEvent[]> => {
     try {
       const response = await window.gapi.client.request({
         path: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
@@ -133,11 +140,23 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
       if (err.result?.error?.status === 'UNAUTHENTICATED') handleLogout();
       return [];
     }
-  };
+  }, [handleLogout]);
 
-  const runForecast = async () => {
+  const runForecast = useCallback(async () => {
     if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
-      setError("Please fill all fields: Start Balance, End Date, Credit Calendar, and Debit Calendar.");
+      // Don't set error here if auto-running, or handle it gracefully.
+      // But for manual run it should show error.
+      // For now, keeping as is, but maybe we should check if it was triggered automatically.
+      // Actually, for auto-run, if fields are missing, we probably just shouldn't run.
+      // But the error message "Please fill all fields" might be annoying on load if fields are empty.
+      // However, fields are persisted, so they likely aren't empty unless first visit.
+      if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
+         setError("Please fill all fields: Start Balance, End Date, Credit Calendar, and Debit Calendar.");
+         return;
+      }
+    }
+
+    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
       return;
     }
 
@@ -171,7 +190,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
       creditEventsRaw.forEach(event => {
         const parsedDate = parseGoogleDate(event.start?.date);
-        if (parsedDate && isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime()) {
+        if (parsedDate && (isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime())) {
           const parsed = parseEventTitle(event.summary);
           if (parsed) {
             transactions.push({ date: parsedDate, amount: parsed.amount, description: parsed.description, type: 'credit' });
@@ -181,7 +200,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
       debitEventsRaw.forEach(event => {
         const parsedDate = parseGoogleDate(event.start?.date);
-        if (parsedDate && isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime()) {
+        if (parsedDate && (isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime())) {
           const parsed = parseEventTitle(event.summary);
           if (parsed) {
             transactions.push({ date: parsedDate, amount: -parsed.amount, description: parsed.description, type: 'debit' });
@@ -222,7 +241,18 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, endDate, startBalance, startFromTomorrow, fetchEvents]);
+
+  useEffect(() => {
+    if (autoRun) {
+      const timer = setTimeout(() => {
+        if (selectedCreditCalendarId && selectedDebitCalendarId && endDate && startBalance) {
+             runForecast();
+        }
+      }, 500);
+      return () => clearTimeout(timer);
+    }
+  }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, endDate, startBalance]);
 
   const handleSort = (key: 'balance' | 'amount' | 'summary' | 'when') => {
     setSortConfig(current => ({
@@ -319,7 +349,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
             </div>
           </div>
 
-          <div className="flex gap-4 items-end">
+          <div className="flex gap-4 items-end flex-wrap">
             <div className="flex items-center space-x-2">
               <Checkbox
                 id="start-tomorrow"
@@ -327,6 +357,14 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                 onCheckedChange={(checked) => setStartFromTomorrow(Boolean(checked))}
               />
               <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="auto-run"
+                checked={autoRun}
+                onCheckedChange={(checked) => setAutoRun(Boolean(checked))}
+              />
+              <Label htmlFor="auto-run">Auto Run</Label>
             </div>
           </div>
             <Button onClick={runForecast} disabled={isLoading}>
