@@ -5,11 +5,11 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { DatePicker } from "@/components/ui/date-picker";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
-import { format, startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
-import { Loader2, ArrowUpDown } from 'lucide-react';
-import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
+import { startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
+import { Loader2 } from 'lucide-react';
+import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
+import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 
@@ -48,11 +48,11 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [sortConfig, setSortConfig] = useState<{
-    key: 'balance' | 'amount' | 'summary' | 'when' | null;
-    direction: 'asc' | 'desc';
+    key: SortKey;
+    direction: SortDirection;
   }>({
     key: null,
-    direction: 'asc'
+    direction: null
   });
   const [startFromTomorrow, setStartFromTomorrow] = useState(true);
   const [settingsLoaded, setSettingsLoaded] = useState(false);
@@ -254,22 +254,56 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     }
   }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, endDate, startBalance]);
 
-  const handleSort = (key: 'balance' | 'amount' | 'summary' | 'when') => {
-    setSortConfig(current => ({
-      key,
-      direction: current.key === key && current.direction === 'asc' ? 'desc' : 'asc'
-    }));
+  const handleSort = (key: SortKey) => {    
+    setSortConfig(current => {
+      if (key !== 'when')
+      {
+        if (current.key !== key) {
+          return {
+            key,
+            direction: 'asc'
+          }
+        }
+
+        if (current.direction === 'desc')
+        {
+          return {
+            key: 'when',
+            direction: 'asc'
+          }
+        }
+
+        return {
+          key,
+          direction: (
+            (current.direction === 'asc')
+            ? 'desc'
+            : 'asc'
+          ) 
+        }
+      }
+      return {
+        key: 'when',
+        direction: (
+          (current.direction === 'asc')
+          ? 'desc'
+          : 'asc'
+        ) 
+      }
+    })
   };
 
   const sortedForecast = [...forecast].sort((a, b) => {
-    if (!sortConfig.key) return 0;
+    if (!sortConfig.key) {
+      return (a.when.getTime() - b.when.getTime())
+    }
     const directionMultiplier = sortConfig.direction === 'asc' ? 1 : -1;
 
     switch (sortConfig.key) {
       case 'balance':
         return (a.balance - b.balance) * directionMultiplier;
       case 'amount':
-        return (a.amount - b.amount) * directionMultiplier;
+        return (((a.type === 'debit' ? -1 : 1) * a.amount) - ((b.type === 'debit' ? -1 : 1) * b.amount)) * directionMultiplier;
       case 'summary':
         return a.summary.localeCompare(b.summary) * directionMultiplier;
       case 'when':
@@ -380,54 +414,11 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         </CardContent>
       </Card>
 
-      <Card>
-        <CardContent className="pt-6">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead onClick={() => handleSort('when')} className="cursor-pointer select-none">
-                  <div className="flex items-center gap-2">
-                    When
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort('summary')} className="cursor-pointer select-none">
-                  <div className="flex items-center gap-2">
-                    Summary
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort('amount')} className="cursor-pointer select-none">
-                  <div className="flex items-center gap-2">
-                    Amount
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-                <TableHead onClick={() => handleSort('balance')} className="cursor-pointer select-none">
-                  <div className="flex items-center gap-2">
-                    Balance
-                    <ArrowUpDown className="w-4 h-4" />
-                  </div>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {sortedForecast.map((entry, index) => (
-                <TableRow key={index} className={cn(
-                  entry.type === 'credit' ? 'bg-green-50 dark:bg-green-950/20' : entry.type === 'debit' ? 'bg-red-50 dark:bg-red-950/20' : '',
-                )}>
-                  <TableCell>{format(entry.when, 'MMM dd, yyyy')}</TableCell>
-                  <TableCell>{entry.summary}</TableCell>
-                  <TableCell className={entry.type === 'debit' ? 'text-red-600 dark:text-red-400' : 'text-green-600 dark:text-green-400'}>
-                    {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
-                  </TableCell>
-                  <TableCell>${entry.balance.toFixed(2)}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
+      <ForecastTable 
+        sortedForecast={sortedForecast}
+        handleSort={handleSort}
+        sortConfig={sortConfig}
+      />
     </div>
   );
 }
