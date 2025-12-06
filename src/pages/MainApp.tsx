@@ -28,6 +28,7 @@ interface UserSettings {
   timespan: string;
   autoRun: boolean;
   weekStartDay: 0 | 1;
+  viewMode: 'table' | 'calendar';
 }
 
 interface MainAppProps {
@@ -64,7 +65,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     const saved = localStorage.getItem('userSettings');
     return saved ? JSON.parse(saved).weekStartDay ?? 0 : 0;
   });
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved ? (JSON.parse(saved).viewMode || 'calendar') : 'calendar';
+  });
 
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -97,6 +101,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           if (parsed.timespan) setTimespan(parsed.timespan);
           if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
           if (parsed.weekStartDay !== undefined) setWeekStartDay(parsed.weekStartDay);
+          if (parsed.viewMode) setViewMode(parsed.viewMode);
         } catch (e) {
           console.error("Failed to parse user settings", e);
         }
@@ -115,13 +120,14 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         timespan,
         autoRun,
         weekStartDay,
+        viewMode,
       };
       localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
 
       // Also update global settings as a fallback/cache for initial load
       localStorage.setItem('userSettings', JSON.stringify(settings));
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, userProfile, settingsLoaded]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, viewMode, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     try {
