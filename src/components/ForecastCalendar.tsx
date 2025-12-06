@@ -277,7 +277,6 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
           />
           {/* Vertical lines for transactions - red for debits, green for credits */}
           {verticalLines.map((line, idx) => {
-            console.log('vertical line', line, idx)
             // Only render if line has actual length
             if (Math.abs(line.y2 - line.y1) < 0.1) return null;
             return (
