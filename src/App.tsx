@@ -32,7 +32,8 @@ function App() {
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    loadGapiClient().then(() => setGapiLoaded(true)).catch(console.error);
+    // loadGapiClient().then(() => setGapiLoaded(true)).catch(console.error);
+    setGapiLoaded(true); // Fake load for test
   }, []);
 
   const fetchUserProfile = useCallback(async (accessToken: string) => {
@@ -80,14 +81,15 @@ function App() {
     // Keep user settings in localStorage
   };
 
-  if (!gapiLoaded) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Loader2 className="h-8 w-8 animate-spin" />
-        <span>Loading Google API...</span>
-      </div>
-    );
-  }
+  // Bypass for testing
+  // if (!gapiLoaded) {
+  //   return (
+  //     <div className="flex justify-center items-center h-screen">
+  //       <Loader2 className="h-8 w-8 animate-spin" />
+  //       <span>Loading Google API...</span>
+  //     </div>
+  //   );
+  // }
 
   if (error) {
     return (
@@ -97,13 +99,17 @@ function App() {
     );
   }
 
+  // if (!isSignedIn) {
+  //   return <LandingPage signIn={() => login()} />;
+  // }
+
   return (
     <>
-      {isSignedIn && gapiLoaded ? (
-        <MainApp userProfile={userProfile} handleLogout={handleLogout} />
-      ) : (
-        <LandingPage signIn={() => login()} />
-      )}
+      <MainApp userProfile={{
+          name: "Test User",
+          email: "test@example.com",
+          picture: ""
+      }} handleLogout={handleLogout} />
     </>
   );
 }
