@@ -1,11 +1,11 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
-import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears } from 'date-fns';
-import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut } from 'lucide-react';
+import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears, format } from 'date-fns';
+import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut, ChevronDown, Search } from 'lucide-react';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
@@ -13,13 +13,16 @@ import { ForecastCalendar } from '@/components/ForecastCalendar';
 import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { InputGroup, InputGroupInput, InputGroupText } from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, InputGroupButton } from '@/components/ui/input-group';
+import { ButtonGroup } from '@/components/ui/button-group';
+import { Input } from '@/components/ui/input';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -73,6 +76,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
   const [sortConfig, setSortConfig] = useState<{
     key: SortKey;
     direction: SortDirection;
@@ -294,6 +298,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     }
   }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance]);
 
+
   const handleSort = (key: SortKey) => {
     setSortConfig(current => {
       if (key !== 'when') {
@@ -331,25 +336,55 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     })
   };
 
-  const sortedForecast = [...forecast].sort((a, b) => {
-    if (!sortConfig.key) {
-      return (a.when.getTime() - b.when.getTime())
-    }
-    const directionMultiplier = sortConfig.direction === 'asc' ? 1 : -1;
+  const filteredForecast = useMemo(() => {
+    if (!searchQuery) return forecast;
+    const lowerQuery = searchQuery.toLowerCase();
+    return forecast.filter(item =>
+      item.summary.toLowerCase().includes(lowerQuery) ||
+      item.amount.toString().includes(lowerQuery) ||
+      item.balance.toString().includes(lowerQuery) ||
+      format(item.when, 'yyyy-MM-dd').includes(lowerQuery)
+    );
+  }, [forecast, searchQuery]);
 
-    switch (sortConfig.key) {
-      case 'balance':
-        return (a.balance - b.balance) * directionMultiplier;
-      case 'amount':
-        return (((a.type === 'debit' ? -1 : 1) * a.amount) - ((b.type === 'debit' ? -1 : 1) * b.amount)) * directionMultiplier;
-      case 'summary':
-        return a.summary.localeCompare(b.summary) * directionMultiplier;
-      case 'when':
-        return (a.when.getTime() - b.when.getTime()) * directionMultiplier;
-      default:
-        return 0;
+  const sortedForecast = useMemo(() => {
+    return [...filteredForecast].sort((a, b) => {
+      if (!sortConfig.key) {
+        return (a.when.getTime() - b.when.getTime())
+      }
+      const directionMultiplier = sortConfig.direction === 'asc' ? 1 : -1;
+
+      switch (sortConfig.key) {
+        case 'balance':
+          return (a.balance - b.balance) * directionMultiplier;
+        case 'amount':
+          return (((a.type === 'debit' ? -1 : 1) * a.amount) - ((b.type === 'debit' ? -1 : 1) * b.amount)) * directionMultiplier;
+        case 'summary':
+          return a.summary.localeCompare(b.summary) * directionMultiplier;
+        case 'when':
+          return (a.when.getTime() - b.when.getTime()) * directionMultiplier;
+        default:
+          return 0;
+      }
+    });
+  }, [filteredForecast, sortConfig]);
+
+  const negativeBalanceExists = sortedForecast.some(entry => entry.balance < 0);
+
+  const scrollToNegativeBalance = () => {
+    const firstNegative = sortedForecast.find(entry => entry.balance < 0);
+    if (!firstNegative) return;
+
+    if (viewMode === 'table') {
+      const index = sortedForecast.indexOf(firstNegative);
+      if (index !== -1) {
+        document.getElementById(`row-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    } else {
+      const dateId = `day-${format(firstNegative.when, 'yyyy-MM-dd')}`;
+      document.getElementById(dateId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
-  });
+  };
 
   return (
     <div className="container mx-auto p-4 space-y-6">
@@ -397,7 +432,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
       <Card>
         <CardContent className="space-y-6 pt-6">
           <div className="grid sm:grid-cols-2 gap-4">
-            <InputGroup>
+            <InputGroup className="flex justify-between">
               <InputGroupText>Starting Balance</InputGroupText>
               <InputGroupInput
                 id="start-balance"
@@ -408,66 +443,94 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               />
             </InputGroup>
 
-            <InputGroup>
+            <InputGroup className="flex justify-between">
               <InputGroupText>Forecast Duration</InputGroupText>
-              <Select value={timespan} onValueChange={setTimespan}>
-                <SelectTrigger id="timespan">
-                  <SelectValue placeholder="Select duration" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="1M">1 Month</SelectItem>
-                  <SelectItem value="3M">3 Months</SelectItem>
-                  <SelectItem value="6M">6 Months</SelectItem>
-                  <SelectItem value="1Y">1 Year</SelectItem>
-                  <SelectItem value="2Y">2 Years</SelectItem>
-                </SelectContent>
-              </Select>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      {timespan === '1M' ? '1 Month' :
+                        timespan === '3M' ? '3 Months' :
+                          timespan === '6M' ? '6 Months' :
+                            timespan === '1Y' ? '1 Year' :
+                              timespan === '2Y' ? '2 Years' : timespan}
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setTimespan("1M")}>1 Month</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimespan("3M")}>3 Months</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimespan("6M")}>6 Months</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimespan("1Y")}>1 Year</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setTimespan("2Y")}>2 Years</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
             </InputGroup>
 
-            <InputGroup>
+            <InputGroup className="flex justify-between">
               <InputGroupText>Income Calendar</InputGroupText>
-              <Select key={`credit-${calendars.length}`} value={selectedCreditCalendarId} onValueChange={setSelectedCreditCalendarId}>
-                <SelectTrigger id="credit-calendar">
-                  <SelectValue placeholder="Select income calendar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {calendars.map(calendar => (
-                    <SelectItem key={calendar.id} value={calendar.id}>{calendar.summary}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "Select income calendar"}
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {calendars.map(calendar => (
+                      <DropdownMenuItem key={calendar.id} onClick={() => setSelectedCreditCalendarId(calendar.id)}>
+                        {calendar.summary}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
             </InputGroup>
 
-            <InputGroup>
+            <InputGroup className="flex justify-between">
               <InputGroupText>Expense Calendar</InputGroupText>
-              <Select key={`debit-${calendars.length}`} value={selectedDebitCalendarId} onValueChange={setSelectedDebitCalendarId}>
-                <SelectTrigger id="debit-calendar">
-                  <SelectValue placeholder="Select expense calendar" />
-                </SelectTrigger>
-                <SelectContent>
-                  {calendars.map(calendar => (
-                    <SelectItem key={calendar.id} value={calendar.id}>{calendar.summary}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "Select expense calendar"}
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    {calendars.map(calendar => (
+                      <DropdownMenuItem key={calendar.id} onClick={() => setSelectedDebitCalendarId(calendar.id)}>
+                        {calendar.summary}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
             </InputGroup>
 
-            <InputGroup>
+            <InputGroup className="flex justify-between">
               <InputGroupText>Start of Week</InputGroupText>
-              <Select value={weekStartDay.toString()} onValueChange={(v) => setWeekStartDay(parseInt(v) as 0 | 1)}>
-                <SelectTrigger id="week-start">
-                  <SelectValue placeholder="Select start of week" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="0">Sunday</SelectItem>
-                  <SelectItem value="1">Monday</SelectItem>
-                </SelectContent>
-              </Select>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      {weekStartDay === 0 ? 'Sunday' : 'Monday'}
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setWeekStartDay(0)}>Sunday</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWeekStartDay(1)}>Monday</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
             </InputGroup>
           </div>
 
           <div className="flex gap-4 items-end flex-wrap">
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Checkbox
                 id="start-tomorrow"
                 checked={startFromTomorrow}
@@ -475,7 +538,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               />
               <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
             </div>
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center gap-2">
               <Checkbox
                 id="auto-run"
                 checked={autoRun}
@@ -497,24 +560,50 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end gap-2">
-        <Button
-          variant={viewMode === 'table' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setViewMode('table')}
-        >
-          <LayoutGrid className="w-4 h-4 mr-2" />
-          Table
-        </Button>
-        <Button
-          variant={viewMode === 'calendar' ? 'default' : 'outline'}
-          size="sm"
-          onClick={() => setViewMode('calendar')}
-        >
-          <CalendarIcon className="w-4 h-4 mr-2" />
-          Calendar
-        </Button>
+      <div className="flex justify-between gap-2">
+        <ButtonGroup>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={!negativeBalanceExists}
+            onClick={() => scrollToNegativeBalance()}
+          >
+            Scroll to negative balance
+          </Button>
+        </ButtonGroup>
+        <ButtonGroup>
+          <Button
+            variant={viewMode === 'table' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('table')}
+          >
+            <LayoutGrid className="w-4 h-4 mr-2" />
+            Table
+          </Button>
+          <Button
+            variant={viewMode === 'calendar' ? 'default' : 'outline'}
+            size="sm"
+            onClick={() => setViewMode('calendar')}
+          >
+            <CalendarIcon className="w-4 h-4 mr-2" />
+            Calendar
+          </Button></ButtonGroup>
       </div>
+
+      <div className="flex items-center py-4">
+        <InputGroup>
+          <InputGroupInput
+            placeholder="Search..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+          />
+          <InputGroupAddon>
+            <Search className="h-4 w-4" />
+          </InputGroupAddon>
+          <InputGroupAddon align="inline-end">{filteredForecast.length} results</InputGroupAddon>
+        </InputGroup>
+      </div>
+
 
       {viewMode === 'table' ? (
         <ForecastTable
@@ -524,7 +613,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         />
       ) : (
         <ForecastCalendar
-          forecast={forecast}
+          forecast={filteredForecast}
           weekStartDay={weekStartDay}
           startDate={sortedForecast.length > 0 ? sortedForecast[0].when : new Date()}
           endDate={(() => {

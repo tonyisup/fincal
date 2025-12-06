@@ -20,6 +20,11 @@ interface WeekData {
   startBalance: number;
 }
 
+const colors = {
+  green: '#86efac',
+  red: '#f87171',
+}
+
 export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }: ForecastCalendarProps) {
   // 1. Calculate Global Min/Max Balance for Y-Axis Scaling
   // 1. Calculate Dynamic Min/Max Balance Strategy (Smoothed Sliding Window)
@@ -364,11 +369,11 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
               gradientUnits="userSpaceOnUse"
             >
               {/* Top part (Green) until zero line */}
-              <stop offset="0%" stopColor="#22c55e" />
-              <stop offset={`${Math.max(0, Math.min(100, zeroYPercentage))}%`} stopColor="#22c55e" />
+              <stop offset="0%" stopColor={colors.green} />
+              <stop offset={`${Math.max(0, Math.min(100, zeroYPercentage))}%`} stopColor={colors.green} />
               {/* Bottom part (Red) after zero line */}
-              <stop offset={`${Math.max(0, Math.min(100, zeroYPercentage))}%`} stopColor="#ef4444" />
-              <stop offset="100%" stopColor="#ef4444" />
+              <stop offset={`${Math.max(0, Math.min(100, zeroYPercentage))}%`} stopColor={colors.red} />
+              <stop offset="100%" stopColor={colors.red} />
             </linearGradient>
 
             {/* Filter for glow/shadow effect if desired */}
@@ -397,7 +402,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
                 y1={line.y1}
                 x2={line.x}
                 y2={line.y2}
-                stroke={line.isDebit ? "#ef4444" : "#22c55e"}
+                stroke={line.isDebit ? colors.red : colors.green}
                 strokeWidth="5"
                 opacity="1"
               />
@@ -414,11 +419,13 @@ function DayCell({ day, transactions }: { day: Date, transactions: ForecastEntry
   const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : null;
 
   return (
-    <div className={cn(
-      "border-r min-h-[120px] p-2 flex flex-col justify-between relative group hover:bg-muted/10 transition-colors",
-      isToday && "bg-blue-400/20",
-      (format(day, 'd') == '1') && "bg-gray-400/20"
-    )}>
+    <div
+      id={`day-${format(day, 'yyyy-MM-dd')}`}
+      className={cn(
+        "border-r min-h-[120px] p-2 flex flex-col justify-between relative group hover:bg-muted/10 transition-colors",
+        isToday && "bg-blue-400/20",
+        (format(day, 'd') == '1') && "bg-gray-400/20"
+      )}>
       <div className="flex justify-between items-center">
         <span className={cn(
           "text-sm font-medium h-7 w-7 flex items-center justify-center rounded-full",

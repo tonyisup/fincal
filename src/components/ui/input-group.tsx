@@ -12,7 +12,7 @@ function InputGroup({ className, ...props }: React.ComponentProps<"div">) {
       data-slot="input-group"
       role="group"
       className={cn(
-        "group/input-group border-input dark:bg-input/30 relative flex w-full items-center rounded-md border shadow-xs transition-[color,box-shadow] outline-none",
+        "p-2 group/input-group border-input dark:bg-input/30 relative flex w-full items-center rounded-md border shadow-xs transition-[color,box-shadow] outline-none",
         "h-9 min-w-0 has-[>textarea]:h-auto",
 
         // Variants based on alignment.
@@ -57,7 +57,7 @@ const inputGroupAddonVariants = cva(
 
 function InputGroupAddon({
   className,
-  align = "inline-start",
+  align = "inline-end",
   ...props
 }: React.ComponentProps<"div"> & VariantProps<typeof inputGroupAddonVariants>) {
   return (
@@ -95,16 +95,14 @@ const inputGroupButtonVariants = cva(
   }
 )
 
-function InputGroupButton({
-  className,
-  type = "button",
-  variant = "ghost",
-  size = "xs",
-  ...props
-}: Omit<React.ComponentProps<typeof Button>, "size"> &
-  VariantProps<typeof inputGroupButtonVariants>) {
+const InputGroupButton = React.forwardRef<
+  React.ElementRef<typeof Button>,
+  Omit<React.ComponentProps<typeof Button>, "size"> &
+  VariantProps<typeof inputGroupButtonVariants>
+>(({ className, type = "button", variant = "ghost", size = "xs", ...props }, ref) => {
   return (
     <Button
+      ref={ref}
       type={type}
       data-size={size}
       variant={variant}
@@ -112,7 +110,8 @@ function InputGroupButton({
       {...props}
     />
   )
-}
+})
+InputGroupButton.displayName = "InputGroupButton"
 
 function InputGroupText({ className, ...props }: React.ComponentProps<"span">) {
   return (
