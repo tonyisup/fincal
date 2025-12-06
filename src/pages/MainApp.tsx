@@ -4,9 +4,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { DatePicker } from "@/components/ui/date-picker";
 import { Card, CardContent } from "@/components/ui/card";
-import { startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
+import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears } from 'date-fns';
 import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut } from 'lucide-react';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
@@ -26,7 +25,7 @@ interface UserSettings {
   selectedCreditCalendarId: string | undefined;
   selectedDebitCalendarId: string | undefined;
   startBalance: string;
-  endDate: string | undefined;
+  timespan: string;
   autoRun: boolean;
   weekStartDay: 0 | 1;
 }
@@ -57,9 +56,9 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     const saved = localStorage.getItem('userSettings');
     return saved ? JSON.parse(saved).startBalance : "4000";
   });
-  const [endDate, setEndDate] = useState<Date | undefined>(() => {
+  const [timespan, setTimespan] = useState<string>(() => {
     const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).endDate ? new Date(JSON.parse(saved).endDate) : new Date(new Date().getFullYear(), new Date().getMonth() + 1, new Date().getDate());
+    return saved && JSON.parse(saved).timespan ? JSON.parse(saved).timespan : '1M';
   });
   const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
     const saved = localStorage.getItem('userSettings');
@@ -95,7 +94,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           if (parsed.selectedCreditCalendarId) setSelectedCreditCalendarId(parsed.selectedCreditCalendarId);
           if (parsed.selectedDebitCalendarId) setSelectedDebitCalendarId(parsed.selectedDebitCalendarId);
           if (parsed.startBalance !== undefined) setStartBalance(parsed.startBalance);
-          if (parsed.endDate) setEndDate(new Date(parsed.endDate));
+          if (parsed.timespan) setTimespan(parsed.timespan);
           if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
           if (parsed.weekStartDay !== undefined) setWeekStartDay(parsed.weekStartDay);
         } catch (e) {
@@ -113,7 +112,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         selectedCreditCalendarId,
         selectedDebitCalendarId,
         startBalance,
-        endDate: endDate?.toISOString(),
+        timespan,
         autoRun,
         weekStartDay,
       };
@@ -122,7 +121,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
       // Also update global settings as a fallback/cache for initial load
       localStorage.setItem('userSettings', JSON.stringify(settings));
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, endDate, autoRun, weekStartDay, userProfile, settingsLoaded]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     try {
@@ -168,20 +167,20 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   }, [handleLogout]);
 
   const runForecast = useCallback(async () => {
-    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
+    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
       // Don't set error here if auto-running, or handle it gracefully.
       // But for manual run it should show error.
       // For now, keeping as is, but maybe we should check if it was triggered automatically.
       // Actually, for auto-run, if fields are missing, we probably just shouldn't run.
       // But the error message "Please fill all fields" might be annoying on load if fields are empty.
       // However, fields are persisted, so they likely aren't empty unless first visit.
-      if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
-         setError("Please fill all fields: Start Balance, End Date, Credit Calendar, and Debit Calendar.");
+      if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
+         setError("Please fill all fields: Start Balance, Timespan, Credit Calendar, and Debit Calendar.");
          return;
       }
     }
 
-    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !endDate || !startBalance) {
+    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
       return;
     }
 
@@ -199,7 +198,17 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     const forecastStartDate = startFromTomorrow
       ? startOfDay(addDays(new Date(), 1))
       : startOfDay(new Date());
-    const forecastEndDate = endOfDay(endDate);
+
+    let forecastEndDate = new Date(forecastStartDate);
+    switch (timespan) {
+      case '1M': forecastEndDate = addMonths(forecastStartDate, 1); break;
+      case '3M': forecastEndDate = addMonths(forecastStartDate, 3); break;
+      case '6M': forecastEndDate = addMonths(forecastStartDate, 6); break;
+      case '1Y': forecastEndDate = addYears(forecastStartDate, 1); break;
+      case '2Y': forecastEndDate = addYears(forecastStartDate, 2); break;
+      default: forecastEndDate = addMonths(forecastStartDate, 1); break;
+    }
+    forecastEndDate = endOfDay(forecastEndDate);
 
     if (isBefore(forecastEndDate, forecastStartDate)) {
       setError("End date cannot be before today.");
@@ -266,18 +275,18 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, endDate, startBalance, startFromTomorrow, fetchEvents]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance, startFromTomorrow, fetchEvents]);
 
   useEffect(() => {
     if (autoRun) {
       const timer = setTimeout(() => {
-        if (selectedCreditCalendarId && selectedDebitCalendarId && endDate && startBalance) {
+        if (selectedCreditCalendarId && selectedDebitCalendarId && timespan && startBalance) {
              runForecast();
         }
       }, 500);
       return () => clearTimeout(timer);
     }
-  }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, endDate, startBalance]);
+  }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance]);
 
   const handleSort = (key: SortKey) => {    
     setSortConfig(current => {
@@ -396,8 +405,19 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="end-date">Select End Date</Label>
-              <DatePicker date={endDate} setDate={setEndDate} />
+              <Label htmlFor="timespan">Forecast Duration</Label>
+              <Select value={timespan} onValueChange={setTimespan}>
+                <SelectTrigger id="timespan">
+                  <SelectValue placeholder="Select duration" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="1M">1 Month</SelectItem>
+                  <SelectItem value="3M">3 Months</SelectItem>
+                  <SelectItem value="6M">6 Months</SelectItem>
+                  <SelectItem value="1Y">1 Year</SelectItem>
+                  <SelectItem value="2Y">2 Years</SelectItem>
+                </SelectContent>
+              </Select>
             </div>
 
             <div className="space-y-2">
@@ -503,7 +523,17 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           forecast={forecast}
           weekStartDay={weekStartDay}
           startDate={sortedForecast.length > 0 ? sortedForecast[0].when : new Date()}
-          endDate={endDate || new Date()}
+          endDate={(() => {
+            const start = startFromTomorrow ? startOfDay(addDays(new Date(), 1)) : startOfDay(new Date());
+            switch (timespan) {
+              case '1M': return addMonths(start, 1);
+              case '3M': return addMonths(start, 3);
+              case '6M': return addMonths(start, 6);
+              case '1Y': return addYears(start, 1);
+              case '2Y': return addYears(start, 2);
+              default: return addMonths(start, 1);
+            }
+          })()}
         />
       )}
     </div>
