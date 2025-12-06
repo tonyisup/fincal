@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -20,6 +19,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
+import { InputGroup, InputGroupInput, InputGroupText } from '@/components/ui/input-group';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -181,8 +181,8 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
       // But the error message "Please fill all fields" might be annoying on load if fields are empty.
       // However, fields are persisted, so they likely aren't empty unless first visit.
       if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
-         setError("Please fill all fields: Start Balance, Timespan, Credit Calendar, and Debit Calendar.");
-         return;
+        setError("Please fill all fields: Start Balance, Timespan, Credit Calendar, and Debit Calendar.");
+        return;
       }
     }
 
@@ -287,17 +287,16 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     if (autoRun) {
       const timer = setTimeout(() => {
         if (selectedCreditCalendarId && selectedDebitCalendarId && timespan && startBalance) {
-             runForecast();
+          runForecast();
         }
       }, 500);
       return () => clearTimeout(timer);
     }
   }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance]);
 
-  const handleSort = (key: SortKey) => {    
+  const handleSort = (key: SortKey) => {
     setSortConfig(current => {
-      if (key !== 'when')
-      {
+      if (key !== 'when') {
         if (current.key !== key) {
           return {
             key,
@@ -305,8 +304,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           }
         }
 
-        if (current.direction === 'desc')
-        {
+        if (current.direction === 'desc') {
           return {
             key: 'when',
             direction: 'asc'
@@ -317,18 +315,18 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
           key,
           direction: (
             (current.direction === 'asc')
-            ? 'desc'
-            : 'asc'
-          ) 
+              ? 'desc'
+              : 'asc'
+          )
         }
       }
       return {
         key: 'when',
         direction: (
           (current.direction === 'asc')
-          ? 'desc'
-          : 'asc'
-        ) 
+            ? 'desc'
+            : 'asc'
+        )
       }
     })
   };
@@ -398,20 +396,20 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
 
       <Card>
         <CardContent className="space-y-6 pt-6">
-          <div className="grid md:grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label htmlFor="start-balance">Start Balance</Label>
-              <Input
+          <div className="grid sm:grid-cols-2 gap-4">
+            <InputGroup>
+              <InputGroupText>Starting Balance</InputGroupText>
+              <InputGroupInput
                 id="start-balance"
                 type="number"
                 placeholder="Enter starting balance"
                 value={startBalance}
                 onChange={(e) => setStartBalance(e.target.value)}
               />
-            </div>
+            </InputGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="timespan">Forecast Duration</Label>
+            <InputGroup>
+              <InputGroupText>Forecast Duration</InputGroupText>
               <Select value={timespan} onValueChange={setTimespan}>
                 <SelectTrigger id="timespan">
                   <SelectValue placeholder="Select duration" />
@@ -424,10 +422,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                   <SelectItem value="2Y">2 Years</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </InputGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="credit-calendar">Income Calendar</Label>
+            <InputGroup>
+              <InputGroupText>Income Calendar</InputGroupText>
               <Select key={`credit-${calendars.length}`} value={selectedCreditCalendarId} onValueChange={setSelectedCreditCalendarId}>
                 <SelectTrigger id="credit-calendar">
                   <SelectValue placeholder="Select income calendar" />
@@ -438,10 +436,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </InputGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="debit-calendar">Expense Calendar</Label>
+            <InputGroup>
+              <InputGroupText>Expense Calendar</InputGroupText>
               <Select key={`debit-${calendars.length}`} value={selectedDebitCalendarId} onValueChange={setSelectedDebitCalendarId}>
                 <SelectTrigger id="debit-calendar">
                   <SelectValue placeholder="Select expense calendar" />
@@ -452,10 +450,10 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                   ))}
                 </SelectContent>
               </Select>
-            </div>
+            </InputGroup>
 
-            <div className="space-y-2">
-              <Label htmlFor="week-start">Start of Week</Label>
+            <InputGroup>
+              <InputGroupText>Start of Week</InputGroupText>
               <Select value={weekStartDay.toString()} onValueChange={(v) => setWeekStartDay(parseInt(v) as 0 | 1)}>
                 <SelectTrigger id="week-start">
                   <SelectValue placeholder="Select start of week" />
@@ -465,7 +463,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
                   <SelectItem value="1">Monday</SelectItem>
                 </SelectContent>
               </Select>
-            </div>
+            </InputGroup>
           </div>
 
           <div className="flex gap-4 items-end flex-wrap">
@@ -486,16 +484,16 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               <Label htmlFor="auto-run">Auto Run</Label>
             </div>
           </div>
-            <Button onClick={runForecast} disabled={isLoading}>
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Forecast
-                </>
-              ) : (
-                'Run Forecast'
-              )}
-            </Button>
+          <Button onClick={runForecast} disabled={isLoading}>
+            {isLoading ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Generating Forecast
+              </>
+            ) : (
+              'Run Forecast'
+            )}
+          </Button>
         </CardContent>
       </Card>
 
@@ -518,8 +516,8 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
         </Button>
       </div>
 
-      {viewMode === 'table' ? (      
-        <ForecastTable 
+      {viewMode === 'table' ? (
+        <ForecastTable
           sortedForecast={sortedForecast}
           handleSort={handleSort}
           sortConfig={sortConfig}

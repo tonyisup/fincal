@@ -22,18 +22,113 @@ interface WeekData {
 
 export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }: ForecastCalendarProps) {
   // 1. Calculate Global Min/Max Balance for Y-Axis Scaling
-  const { minBalance, maxBalance } = useMemo(() => {
-    if (forecast.length === 0) return { minBalance: 0, maxBalance: 100 };
-    let min = Infinity;
-    let max = -Infinity;
-    forecast.forEach(f => {
-      if (f.balance < min) min = f.balance;
-      if (f.balance > max) max = f.balance;
+  // 1. Calculate Dynamic Min/Max Balance Strategy (Smoothed Sliding Window)
+  const getScale = useMemo(() => {
+    if (forecast.length === 0) return () => ({ min: 0, max: 100 });
+
+    // Pre-calculate daily balances for the entire covered range
+    // We'll pad the range by 30 days to handle the window at edges if possible, 
+    // but we only have forecast data. We'll stick to the forecast range.
+    // Assuming forecast is sorted by date.
+    const sortedForecast = [...forecast].sort((a, b) => a.when.getTime() - b.when.getTime());
+    if (sortedForecast.length === 0) return () => ({ min: 0, max: 100 });
+
+    const rangeStart = startOfWeek(startDate, { weekStartsOn: weekStartDay });
+    const rangeEnd = endOfWeek(endDate, { weekStartsOn: weekStartDay });
+
+    // Create a map of daily balances
+    const balanceMap = new Map<string, number>();
+    let currentBalance = sortedForecast.length > 0 ? sortedForecast[0].balance : 0;
+
+    // We need to fill balances from rangeStart to rangeEnd
+    // Note: optimization possible, but looping days is safe for typical ranges (~1-2 years = 700 days)
+    const allDays = eachDayOfInterval({ start: rangeStart, end: rangeEnd });
+
+    let forecastIdx = 0;
+    const dailyBalances: number[] = [];
+
+    allDays.forEach(day => {
+      // Advance forecast index to current day
+      while (forecastIdx < sortedForecast.length && isBefore(sortedForecast[forecastIdx].when, day)) {
+        // Transaction happened before this day starts? 
+        // Actually forecast 'when' usually has time.
+        // If strict inequality: transaction is earlier.
+        currentBalance = sortedForecast[forecastIdx].balance;
+        forecastIdx++;
+      }
+      // Also check transactions ON this day (up to end of day?)
+      // The balance at the "end of the day" or "start"?
+      // Let's assume we want the balance relevant for this day. 
+      // If we process all transactions on this day, we get end-of-day balance.
+      let tempIdx = forecastIdx;
+      while (tempIdx < sortedForecast.length && isSameDay(sortedForecast[tempIdx].when, day)) {
+        currentBalance = sortedForecast[tempIdx].balance;
+        tempIdx++;
+      }
+      // We don't advance forecastIdx permanently here because we loop day by day. 
+      // Actually, since allDays is sequential, we CAN advance.
+      forecastIdx = tempIdx;
+
+      balanceMap.set(format(day, 'yyyy-MM-dd'), currentBalance);
+      dailyBalances.push(currentBalance);
     });
-    // Add some padding
-    const padding = (max - min) * 0.1;
-    return { minBalance: min - padding, maxBalance: max + padding };
-  }, [forecast]);
+
+    // Valid helper to get balance (clamped to edges if date out of range, though we cover range)
+    const getB = (idx: number) => dailyBalances[Math.max(0, Math.min(dailyBalances.length - 1, idx))];
+
+    // 1st Pass: Sliding Window Min/Max (30 day window -> +/- 15 days)
+    const WINDOW_HALF_SIZE = 15;
+    const rollingStats = dailyBalances.map((_, i) => {
+      let min = Infinity;
+      let max = -Infinity;
+      for (let offset = -WINDOW_HALF_SIZE; offset <= WINDOW_HALF_SIZE; offset++) {
+        const val = getB(i + offset);
+        if (val < min) min = val;
+        if (val > max) max = val;
+      }
+      return { min, max };
+    });
+
+    // 2nd Pass: Smoothing (Running Average of the Min/Max) - e.g. over 15 days
+    const SMOOTH_HALF_SIZE = 7;
+    const smoothedScales = new Map<string, { min: number, max: number }>();
+
+    allDays.forEach((day, i) => {
+      let sumMin = 0;
+
+      // User asked for "Running average of the min and max". 
+      // Averaging the Max might clip peaks.
+      // But averaging Min/Max gives a stable "envelope".
+      // Let's implement Average for both as requested.
+
+      let sumMax = 0;
+      let count = 0;
+
+      for (let offset = -SMOOTH_HALF_SIZE; offset <= SMOOTH_HALF_SIZE; offset++) {
+        const idx = Math.max(0, Math.min(dailyBalances.length - 1, i + offset));
+        sumMin += rollingStats[idx].min;
+        sumMax += rollingStats[idx].max;
+        count++;
+      }
+
+      const avgMin = sumMin / count;
+      const avgMax = sumMax / count;
+
+      // Add padding (10% of range)
+      const range = avgMax - avgMin;
+      const padding = range * 0.1;
+
+      smoothedScales.set(format(day, 'yyyy-MM-dd'), {
+        min: avgMin - padding,
+        max: avgMax + padding
+      });
+    });
+
+    return (date: Date) => {
+      return smoothedScales.get(format(date, 'yyyy-MM-dd')) || { min: 0, max: 100 };
+    };
+
+  }, [forecast, startDate, endDate, weekStartDay]);
 
   // 2. Organize data into weeks
   const weeks = useMemo(() => {
@@ -48,20 +143,20 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }:
     // Helper to find balance at a specific time
     // We assume forecast is sorted by time
     const getBalanceAt = (date: Date) => {
-        // Find the last transaction before or at this date
-        // If none, use the very first balance or 0
-        // Since forecast is sorted:
-        let lastBalance = forecast.length > 0 ? forecast[0].balance : 0; // Default to first known balance?
-        // Actually, if date is BEFORE first forecast entry, we don't know.
-        // But usually forecast starts with "Starting Balance".
+      // Find the last transaction before or at this date
+      // If none, use the very first balance or 0
+      // Since forecast is sorted:
+      let lastBalance = forecast.length > 0 ? forecast[0].balance : 0; // Default to first known balance?
+      // Actually, if date is BEFORE first forecast entry, we don't know.
+      // But usually forecast starts with "Starting Balance".
 
-        for (let i = 0; i < forecast.length; i++) {
-            if (isAfter(forecast[i].when, date)) {
-                break;
-            }
-            lastBalance = forecast[i].balance;
+      for (let i = 0; i < forecast.length; i++) {
+        if (isAfter(forecast[i].when, date)) {
+          break;
         }
-        return lastBalance;
+        lastBalance = forecast[i].balance;
+      }
+      return lastBalance;
     };
 
     while (currentWeekStart <= end) {
@@ -114,13 +209,14 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }:
           <WeekRow
             key={i}
             week={week}
-            minBalance={minBalance}
-            maxBalance={maxBalance}
+            minBalance={getScale(week.start).min ?? 0}
+            maxBalance={getScale(week.start).max ?? 100}
           />
         ))}
       </div>
     </div>
   );
+
 }
 
 function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance: number, maxBalance: number }) {
@@ -129,15 +225,30 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
   const width = 1000; // Arbitrary units for SVG coordinate system
 
   // Calculate SVG Path and Vertical Lines
-  const { pathData, verticalLines } = useMemo(() => {
+  const { pathData, verticalLines, renderMin, renderMax } = useMemo(() => {
+    // 1. Determine the actual value range for this week to prevent clipping
+    let wMin = week.startBalance;
+    let wMax = week.startBalance;
+    week.transactions.forEach(t => {
+      if (t.balance < wMin) wMin = t.balance;
+      if (t.balance > wMax) wMax = t.balance;
+    });
+
+    // 2. Add padding to local bounds (match the 10% logic or enough to clear stroke)
+    const wRange = wMax - wMin;
+    const wPadding = (wRange === 0 ? 100 : wRange) * 0.1;
+    const safeMin = wMin - wPadding;
+    const safeMax = wMax + wPadding;
+
+    // 3. Merge with the Smooth/Global Scale passed in
+    // This ensures we follow the trend BUT expand if the trend is too tight
+    const rMin = Math.min(minBalance, safeMin);
+    const rMax = Math.max(maxBalance, safeMax);
+
     const getY = (balance: number) => {
-      // Invert Y because SVG coordinates go down
-      // Scale balance between min and max
-      // If max == min, avoid division by zero
-      const range = maxBalance - minBalance;
-      const normalized = range === 0 ? 0.5 : (balance - minBalance) / range;
-      // We want maxBalance to be at Y=10 (padding) and minBalance at Y=90
-      // Actually let's use full height 0-100 for simplicity, maybe with 5px padding
+      // Scale balance between renderMin and renderMax
+      const range = rMax - rMin;
+      const normalized = range === 0 ? 0.5 : (balance - rMin) / range;
       return 100 - (normalized * 100);
     };
 
@@ -164,10 +275,10 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     // Process transactions day by day, distributing them evenly within each day
     week.days.forEach((_, dayIndex) => {
       const dayTransactions = transactionsByDay.get(dayIndex) || [];
-      
+
       const dayStartX = (dayIndex / 7) * width;
       const dayEndX = ((dayIndex + 1) / 7) * width;
-      
+
       if (dayTransactions.length === 0) {
         // No transactions in this day - continue horizontally at current balance
         d += ` L ${dayEndX} ${getY(currentBalance)}`;
@@ -184,7 +295,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
 
         // Draw horizontal line to the time of transaction at previous balance (step function)
         d += ` L ${x} ${yPrev}`;
-        
+
         // Store vertical line separately - will be drawn on top with appropriate color
         verticalLinesData.push({
           x,
@@ -197,7 +308,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
         d += ` L ${x} ${yNew}`;
         currentBalance = tx.balance;
       });
-      
+
       // After all transactions in the day, continue to end of day at current balance
       d += ` L ${dayEndX} ${getY(currentBalance)}`;
     });
@@ -205,23 +316,23 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     // Draw to end of week
     d += ` L ${width} ${getY(currentBalance)}`;
 
-    return { pathData: d, verticalLines: verticalLinesData };
+    return { pathData: d, verticalLines: verticalLinesData, renderMin: rMin, renderMax: rMax };
   }, [week, minBalance, maxBalance]);
 
   // Calculate Gradient Zero-Crossing
   // We want Green above 0 (visually higher, lower Y) and Red below 0
   const zeroYPercentage = useMemo(() => {
-    if (minBalance > 0) return 100; // All green (0 is below graph)
-    if (maxBalance < 0) return 0;   // All red (0 is above graph)
+    if (renderMin > 0) return 100; // All green (0 is below graph)
+    if (renderMax < 0) return 0;   // All red (0 is above graph)
 
     // 0 is somewhere in between
-    const range = maxBalance - minBalance;
-    const zeroPos = (0 - minBalance) / range;
+    const range = renderMax - renderMin;
+    const zeroPos = (0 - renderMin) / range;
     // zeroPos is 0..1 where 0 is minBalance (bottom) and 1 is maxBalance (top)
     // In SVG Y terms (0 at top, 100 at bottom):
     // Y for 0 = 100 - (zeroPos * 100)
     return (1 - zeroPos) * 100;
-  }, [minBalance, maxBalance]);
+  }, [renderMin, renderMax]);
 
   const uniqueId = React.useId();
 
@@ -229,11 +340,11 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     <div className="relative grid grid-cols-7 min-h-[120px]">
       {/* Background Grid Cells */}
       {week.days.map((day, i) => (
-         <DayCell
-           key={i}
-           day={day}
-           transactions={week.transactions.filter(t => isSameDay(t.when, day))}
-         />
+        <DayCell
+          key={i}
+          day={day}
+          transactions={week.transactions.filter(t => isSameDay(t.when, day))}
+        />
       ))}
 
       {/* SVG Overlay */}
@@ -262,7 +373,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
 
             {/* Filter for glow/shadow effect if desired */}
             <filter id={`shadow-${uniqueId}`}>
-               <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.3" />
+              <feDropShadow dx="0" dy="1" stdDeviation="1" floodOpacity="0.3" />
             </filter>
           </defs>
 
@@ -324,8 +435,8 @@ function DayCell({ day, transactions }: { day: Date, transactions: ForecastEntry
           For hover, maybe we can show the end-of-day balance at the bottom of the cell.
       */}
       <div className="flex justify-between items-center">
-        
-      {transactions.length > 0 && (
+
+        {transactions.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
               <button className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
