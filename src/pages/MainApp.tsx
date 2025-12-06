@@ -8,10 +8,10 @@ import { DatePicker } from "@/components/ui/date-picker";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { format, startOfDay, endOfDay, isBefore, isAfter, addDays } from 'date-fns';
-import { LogOut, Loader2, ArrowUpDown, Sun } from 'lucide-react';
+import { Loader2, ArrowUpDown } from 'lucide-react';
 import { cn, parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
-import { useTheme } from '@/providers/theme-provider';
+import { ModeToggle } from '@/components/ui/mode-toggle';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -54,8 +54,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
     direction: 'asc'
   });
   const [startFromTomorrow, setStartFromTomorrow] = useState(true);
-  const { theme, setTheme } = useTheme();
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
+  const [settingsLoaded, setSettingsLoaded] = useState(false)
 
   // Load user-specific settings when userProfile is available
   useEffect(() => {
@@ -262,14 +261,7 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
               <span className="text-sm">{userProfile.name}</span>
             </div>
           )}
-          <Button onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')} variant="outline">
-            <Sun className="w-4 h-4 mr-2" />
-            {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
-          </Button>
-          <Button onClick={handleLogout} variant="outline">
-            <LogOut className="w-4 h-4 mr-2" />
-            Logout
-          </Button>
+          <ModeToggle />
         </div>
       </div>
 

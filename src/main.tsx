@@ -14,7 +14,7 @@ if (!GOOGLE_CLIENT_ID) {
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
     <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
-      <ThemeProvider defaultTheme="dark" storageKey="vite-ui-theme">
+      <ThemeProvider storageKey="vite-ui-theme">
         <App />
       </ThemeProvider>
     </GoogleOAuthProvider>
