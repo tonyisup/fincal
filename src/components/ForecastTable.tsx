@@ -1,7 +1,7 @@
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from 'date-fns';
-import { ArrowDown, ArrowUp, ArrowUpDown, SortAsc, SortDesc } from 'lucide-react';
+import { SortAsc, SortDesc } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import type { ForecastEntry } from '../types/calendar';
 
