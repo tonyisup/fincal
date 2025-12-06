@@ -130,15 +130,6 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
 
   // Calculate SVG Path
   const pathData = useMemo(() => {
-    const totalSeconds = 7 * 24 * 60 * 60;
-    const weekStartTime = week.start.getTime();
-
-    // Helper to scale X and Y
-    const getX = (date: Date) => {
-      const diff = (date.getTime() - weekStartTime) / 1000;
-      return (diff / totalSeconds) * width;
-    };
-
     const getY = (balance: number) => {
       // Invert Y because SVG coordinates go down
       // Scale balance between min and max
@@ -157,17 +148,40 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
     // Sort transactions just in case
     const sorted = [...week.transactions].sort((a, b) => a.when.getTime() - b.when.getTime());
 
+    // Group transactions by day
+    const transactionsByDay = new Map<number, ForecastEntry[]>();
     sorted.forEach(tx => {
-      const x = getX(tx.when);
-      const yPrev = getY(currentBalance);
-      const yNew = getY(tx.balance);
+      const dayIndex = week.days.findIndex(day => isSameDay(day, tx.when));
+      if (dayIndex !== -1) {
+        if (!transactionsByDay.has(dayIndex)) {
+          transactionsByDay.set(dayIndex, []);
+        }
+        transactionsByDay.get(dayIndex)!.push(tx);
+      }
+    });
 
-      // Draw line to the time of transaction at previous balance (step function)
-      d += ` L ${x} ${yPrev}`;
-      // Draw vertical line to new balance
-      d += ` L ${x} ${yNew}`;
+    // Process transactions day by day, distributing them evenly within each day
+    week.days.forEach((_, dayIndex) => {
+      const dayTransactions = transactionsByDay.get(dayIndex) || [];
+      if (dayTransactions.length === 0) return;
 
-      currentBalance = tx.balance;
+      const dayStartX = (dayIndex / 7) * width;
+      const dayEndX = ((dayIndex + 1) / 7) * width;
+      const dayWidth = dayEndX - dayStartX;
+      const spacing = dayWidth / (dayTransactions.length + 1);
+
+      dayTransactions.forEach((tx, txIndex) => {
+        const x = dayStartX + (txIndex + 1) * spacing;
+        const yPrev = getY(currentBalance);
+        const yNew = getY(tx.balance);
+
+        // Draw line to the time of transaction at previous balance (step function)
+        d += ` L ${x} ${yPrev}`;
+        // Draw vertical line to new balance
+        d += ` L ${x} ${yNew}`;
+
+        currentBalance = tx.balance;
+      });
     });
 
     // Draw to end of week
