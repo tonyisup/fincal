@@ -4,6 +4,7 @@ import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-route
 import { Loader2 } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
 import { MainApp } from './pages/MainApp';
+import { ImportTransactions } from './pages/ImportTransactions';
 import type { UserProfile } from './types/calendar';
 import { Spinner } from './components/ui/spinner';
 import { Button } from './components/ui/button';
@@ -235,6 +236,14 @@ function AppRoutes() {
         element={
           <ProtectedRoute>
             <MainApp userProfile={userProfile} accessToken={accessToken} handleLogout={handleLogout} />
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/import"
+        element={
+          <ProtectedRoute>
+            <ImportTransactions />
           </ProtectedRoute>
         }
       />
