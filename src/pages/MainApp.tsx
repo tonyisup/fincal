@@ -86,6 +86,15 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
     return saved ? !!JSON.parse(saved).autoRun : false;
   });
 
+  // State for Add Transaction Dialog
+  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
+  const [addTransactionDefaults, setAddTransactionDefaults] = useState<{ date?: Date, type?: 'credit' | 'debit' }>({});
+
+  const handleAddTransaction = useCallback((date?: Date, type?: 'credit' | 'debit') => {
+    setAddTransactionDefaults({ date, type });
+    setIsAddTransactionOpen(true);
+  }, []);
+
   // Load user-specific settings when userProfile is available
   useEffect(() => {
     if (userProfile?.email) {
@@ -633,7 +642,11 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
                 'Run Forecast'
               )}
             </Button>
-            <div className="ml-4">
+            <div className="ml-4 flex gap-2">
+              <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => handleAddTransaction()}>
+                <Plus className="h-5 w-5" />
+                <span className="sr-only">Add Transaction</span>
+              </Button>
               <AddTransactionDialog
                 selectedCreditCalendarId={selectedCreditCalendarId}
                 selectedDebitCalendarId={selectedDebitCalendarId}
@@ -644,6 +657,10 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
                 handleLogout={handleLogout}
                 hasWriteAccess={hasWriteAccess}
                 grantWriteAccess={grantWriteAccess}
+                open={isAddTransactionOpen}
+                onOpenChange={setIsAddTransactionOpen}
+                defaultDate={addTransactionDefaults.date}
+                defaultType={addTransactionDefaults.type}
               />
             </div>
           </div>
@@ -700,6 +717,7 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
           sortedForecast={sortedForecast}
           handleSort={handleSort}
           sortConfig={sortConfig}
+          onAddTransaction={handleAddTransaction}
         />
       ) : (
         <ForecastCalendar
@@ -717,6 +735,7 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
               default: return addMonths(start, 1);
             }
           })()}
+          onAddTransaction={handleAddTransaction}
         />
       )}
     </div>

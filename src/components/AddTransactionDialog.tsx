@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Plus, Loader2, CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils";
 import type { Calendar as GoogleCalendar } from "../types/calendar";
 
 interface AddTransactionDialogProps {
-  calendars: GoogleCalendar[];
+  calendars?: GoogleCalendar[];
   selectedCreditCalendarId: string | undefined;
   selectedDebitCalendarId: string | undefined;
   accessToken: string | null;
@@ -38,6 +38,10 @@ interface AddTransactionDialogProps {
   handleLogout: () => void;
   hasWriteAccess: boolean;
   grantWriteAccess: () => Promise<boolean>;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  defaultDate?: Date;
+  defaultType?: 'credit' | 'debit';
 }
 
 type Frequency = "ONCE" | "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
@@ -50,16 +54,19 @@ export function AddTransactionDialog({
   handleLogout,
   hasWriteAccess,
   grantWriteAccess,
+  open,
+  onOpenChange,
+  defaultDate = new Date(),
+  defaultType = 'debit'
 }: Omit<AddTransactionDialogProps, 'calendars'>) {
-  const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const [description, setDescription] = useState("");
   const [amount, setAmount] = useState("");
-  const [type, setType] = useState<"credit" | "debit">("debit");
+  const [type, setType] = useState<"credit" | "debit">(defaultType);
   const [frequency, setFrequency] = useState<Frequency>("ONCE");
-  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [date, setDate] = useState<Date | undefined>(defaultDate);
 
   // Custom recurrence options
   const [recurrenceCount, setRecurrenceCount] = useState("");
@@ -68,6 +75,22 @@ export function AddTransactionDialog({
   // Date picker state
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isRecurrenceDateOpen, setIsRecurrenceDateOpen] = useState(false);
+
+  // Reset/Initialize form when dialog opens
+  useEffect(() => {
+    if (open) {
+      if (defaultDate) setDate(defaultDate);
+      if (defaultType) setType(defaultType);
+      // Don't reset other fields if we want to persist? 
+      // Usually opening a new dialog means new transaction, so safe to reset others.
+      setDescription("");
+      setAmount("");
+      setFrequency("ONCE");
+      setRecurrenceCount("");
+      setRecurrenceUntil(undefined);
+      setError(null);
+    }
+  }, [open, defaultDate, defaultType]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -139,8 +162,9 @@ export function AddTransactionDialog({
         };
       }
 
-      setOpen(false);
-      resetForm();
+      onOpenChange(false);
+      // We don't reset form here because useEffect will do it on next open
+      // but cleaning up is good practice if we didn't have the effect.
       onTransactionAdded();
     } catch (err: any) {
       console.error("Error creating transaction:", err);
@@ -153,25 +177,8 @@ export function AddTransactionDialog({
     }
   };
 
-  const resetForm = () => {
-    setDescription("");
-    setAmount("");
-    setType("debit");
-    setFrequency("ONCE");
-    setDate(new Date());
-    setRecurrenceCount("");
-    setRecurrenceUntil(undefined);
-    setError(null);
-  };
-
   return (
-    <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>
-        <Button size="icon" className="h-10 w-10 shrink-0">
-          <Plus className="h-5 w-5" />
-          <span className="sr-only">Add Transaction</span>
-        </Button>
-      </DialogTrigger>
+    <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Add Transaction</DialogTitle>
