@@ -6,6 +6,7 @@ import { LandingPage } from './pages/LandingPage';
 import { MainApp } from './pages/MainApp';
 import type { UserProfile } from './types/calendar';
 import { Spinner } from './components/ui/spinner';
+import { Button } from './components/ui/button';
 
 // Storage keys for persistence
 const STORAGE_KEYS = {
@@ -65,6 +66,9 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
       <div className="flex justify-center items-center h-screen flex-col gap-4">
         <Spinner />
         <p className="text-muted-foreground">Please sign in to continue...</p>
+        <Button onClick={() => login()} variant="default">
+          Sign In
+        </Button>
       </div>
     );
   }
