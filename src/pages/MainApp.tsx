@@ -5,11 +5,12 @@ import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears, format } from 'date-fns';
-import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut, ChevronDown, Search } from 'lucide-react';
+import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut, ChevronDown, Search, Plus } from 'lucide-react';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
 import { ForecastCalendar } from '@/components/ForecastCalendar';
+import { AddTransactionDialog } from '@/components/AddTransactionDialog';
 import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import {
   DropdownMenu,
@@ -154,6 +155,51 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
       setIsLoading(false);
     }
   }, [accessToken, handleLogout]);
+
+  const createCalendar = async (summary: string) => {
+    if (!accessToken) return null;
+    try {
+      setIsLoading(true);
+      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars', {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${accessToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ summary })
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.error?.message || response.statusText,
+          status: response.status
+        };
+      }
+
+      const newCalendar = await response.json();
+      await fetchCalendars(); // Refresh calendar list
+      return newCalendar;
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
+      console.error("Error creating calendar:", err);
+      setError(`Failed to create calendar: ${err.message}`);
+      if (err.status === 401) handleLogout();
+      return null;
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleCreateCalendar = async (type: 'credit' | 'debit') => {
+    const name = window.prompt("Enter new calendar name:");
+    if (name) {
+      const newCal = await createCalendar(name);
+      if (newCal) {
+        if (type === 'credit') setSelectedCreditCalendarId(newCal.id);
+        else setSelectedDebitCalendarId(newCal.id);
+      }
+    }
+  };
 
   useEffect(() => {
     if (accessToken) {
@@ -498,6 +544,10 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
                         {calendar.summary}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleCreateCalendar('credit')}>
+                      <Plus className="mr-2 h-4 w-4" /> Create new...
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </InputGroupAddon>
@@ -519,6 +569,10 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
                         {calendar.summary}
                       </DropdownMenuItem>
                     ))}
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem onClick={() => handleCreateCalendar('debit')}>
+                      <Plus className="mr-2 h-4 w-4" /> Create new...
+                    </DropdownMenuItem>
                   </DropdownMenuContent>
                 </DropdownMenu>
               </InputGroupAddon>
@@ -561,16 +615,29 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
               <Label htmlFor="auto-run">Auto Run</Label>
             </div>
           </div>
-          <Button onClick={runForecast} disabled={isLoading}>
-            {isLoading ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Generating Forecast
-              </>
-            ) : (
-              'Run Forecast'
-            )}
-          </Button>
+          <div className="flex justify-between items-center w-full">
+            <Button onClick={runForecast} disabled={isLoading} className="flex-1">
+              {isLoading ? (
+                <>
+                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  Generating Forecast
+                </>
+              ) : (
+                'Run Forecast'
+              )}
+            </Button>
+            <div className="ml-4">
+              <AddTransactionDialog
+                  selectedCreditCalendarId={selectedCreditCalendarId}
+                  selectedDebitCalendarId={selectedDebitCalendarId}
+                  accessToken={accessToken}
+                  onTransactionAdded={() => {
+                      if (autoRun) runForecast();
+                  }}
+                  handleLogout={handleLogout}
+              />
+            </div>
+          </div>
         </CardContent>
       </Card>
 
