@@ -173,7 +173,7 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
       });
 
       const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`, {
-         headers: {
+        headers: {
           'Authorization': `Bearer ${accessToken}`
         }
       });
@@ -450,6 +450,7 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
               <InputGroupInput
                 id="start-balance"
                 type="number"
+                className="text-right"
                 placeholder="Enter starting balance"
                 value={startBalance}
                 onChange={(e) => setStartBalance(e.target.value)}
