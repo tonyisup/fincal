@@ -7,26 +7,6 @@ import { MainApp } from './pages/MainApp';
 import type { UserProfile } from './types/calendar';
 import { Spinner } from './components/ui/spinner';
 
-// Load Google API client library
-const loadGapiClient = () => {
-  return new Promise<void>((resolve, reject) => {
-    const script = document.createElement('script');
-    script.src = 'https://apis.google.com/js/api.js';
-    script.onload = () => {
-      window.gapi.load('client', () => {
-        window.gapi.client.init({
-          apiKey: import.meta.env.GOOGLE_API_KEY,
-          // discoveryDocs: ["https://www.googleapis.com/discovery/v1/apis/calendar/v3/rest"],
-        })
-          .then(() => resolve())
-          .catch((err) => reject(err));
-      });
-    };
-    script.onerror = (err) => reject(err);
-    document.body.appendChild(script);
-  });
-};
-
 // Storage keys for persistence
 const STORAGE_KEYS = {
   ACCESS_TOKEN: 'fincal_access_token',
@@ -36,8 +16,8 @@ const STORAGE_KEYS = {
 // Auth context
 interface AuthContextType {
   isSignedIn: boolean;
+  accessToken: string | null;
   userProfile: UserProfile | null;
-  gapiLoaded: boolean;
   isRestoringSession: boolean;
   login: () => void;
   handleLogout: () => void;
@@ -56,17 +36,17 @@ export const useAuth = () => {
 
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isRestoringSession, gapiLoaded, login, error } = useAuth();
+  const { isSignedIn, isRestoringSession, login, error } = useAuth();
   const [hasRequestedLogin, setHasRequestedLogin] = useState(false);
 
   useEffect(() => {
-    if (!isRestoringSession && gapiLoaded && !isSignedIn && !hasRequestedLogin) {
+    if (!isRestoringSession && !isSignedIn && !hasRequestedLogin) {
       setHasRequestedLogin(true);
       login();
     }
-  }, [isRestoringSession, gapiLoaded, isSignedIn, hasRequestedLogin, login]);
+  }, [isRestoringSession, isSignedIn, hasRequestedLogin, login]);
 
-  if (!gapiLoaded || isRestoringSession) {
+  if (isRestoringSession) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Spinner />
@@ -95,16 +75,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
 // Auth Provider Component
 function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isSignedIn, setIsSignedIn] = useState(false);
-  const [gapiLoaded, setGapiLoaded] = useState(false);
+  const [accessToken, setAccessToken] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
   const navigate = useNavigate();
-
-  useEffect(() => {
-    loadGapiClient().then(() => setGapiLoaded(true)).catch(console.error);
-    // setGapiLoaded(true); // Fake load for test
-  }, []);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -113,13 +88,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         const storedToken = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
         const storedProfile = localStorage.getItem(STORAGE_KEYS.USER_PROFILE);
 
-        if (storedToken && storedProfile && gapiLoaded) {
+        if (storedToken && storedProfile) {
           const profile: UserProfile = JSON.parse(storedProfile);
-
-          // Set the token in gapi client
-          if (window.gapi && window.gapi.client) {
-            window.gapi.client.setToken({ access_token: storedToken });
-          }
 
           // Verify token is still valid by fetching user profile
           try {
@@ -131,6 +101,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
               // Token is valid, restore session
+              setAccessToken(storedToken);
               setUserProfile(profile);
               setIsSignedIn(true);
             } else {
@@ -155,16 +126,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     };
 
-    if (gapiLoaded) {
-      restoreSession();
-    }
-  }, [gapiLoaded]);
+    restoreSession();
+  }, []);
 
-  const fetchUserProfile = useCallback(async (accessToken: string) => {
+  const fetchUserProfile = useCallback(async (token: string) => {
     try {
       const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
         headers: {
-          Authorization: `Bearer ${accessToken}`,
+          Authorization: `Bearer ${token}`,
         },
       });
       if (!response.ok) {
@@ -188,14 +157,14 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const login = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
-      const accessToken = tokenResponse.access_token;
+      const token = tokenResponse.access_token;
 
       // Store token in localStorage for persistence
-      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, accessToken);
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+      setAccessToken(token);
 
-      window.gapi.client.setToken({ access_token: accessToken });
       setIsSignedIn(true);
-      await fetchUserProfile(accessToken);
+      await fetchUserProfile(token);
       navigate('/app');
     },
     onError: (errorResponse) => {
@@ -207,10 +176,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const handleLogout = () => {
     googleLogout();
-    if (window.gapi && window.gapi.client) {
-      window.gapi.client.setToken(null);
-    }
     setIsSignedIn(false);
+    setAccessToken(null);
     setUserProfile(null);
 
     // Clear stored authentication data
@@ -222,29 +189,27 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const value: AuthContextType = {
     isSignedIn,
+    accessToken,
     userProfile,
-    gapiLoaded,
     isRestoringSession,
     login,
     handleLogout,
     error,
   };
 
-
-
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;
 }
 
 // Routes Component
 function AppRoutes() {
-  const { isSignedIn, isRestoringSession, gapiLoaded, userProfile, handleLogout, login } = useAuth();
+  const { isSignedIn, isRestoringSession, userProfile, accessToken, handleLogout, login } = useAuth();
 
-  // Show loading while restoring session or loading GAPI
-  if (!gapiLoaded || isRestoringSession) {
+  // Show loading while restoring session
+  if (isRestoringSession) {
     return (
       <div className="flex justify-center items-center h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
-        <span>Loading Google API...</span>
+        <span>Loading...</span>
       </div>
     );
   }
@@ -265,7 +230,7 @@ function AppRoutes() {
         path="/app"
         element={
           <ProtectedRoute>
-            <MainApp userProfile={userProfile} handleLogout={handleLogout} />
+            <MainApp userProfile={userProfile} accessToken={accessToken} handleLogout={handleLogout} />
           </ProtectedRoute>
         }
       />

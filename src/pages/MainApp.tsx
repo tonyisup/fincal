@@ -13,7 +13,6 @@ import { ForecastCalendar } from '@/components/ForecastCalendar';
 import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import {
   DropdownMenu,
-  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
@@ -22,7 +21,6 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, InputGroupButton } from '@/components/ui/input-group';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { Input } from '@/components/ui/input';
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -36,17 +34,11 @@ interface UserSettings {
 
 interface MainAppProps {
   userProfile: UserProfile | null;
+  accessToken: string | null;
   handleLogout: () => void;
 }
 
-// const mockData = [
-//   { balance: 2000, amount: 0, summary: "Start", when: new Date(), type: 'initial' },
-//   { balance: 1500, amount: 500, summary: "Groceries", when: new Date(new Date().getTime() + 86400000), type: 'debit' },
-//   { balance: -200, amount: 2000, summary: "Rent", when: new Date(new Date().getTime() + 86400000 * 5), type: 'debit' },
-//   { balance: 500, amount: 700, summary: "Deposit", when: new Date(new Date().getTime() + 86400000 * 6), type: 'credit' },
-// ];
-
-export function MainApp({ userProfile, handleLogout }: MainAppProps) {
+export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps) {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
     const saved = localStorage.getItem('userSettings');
@@ -134,56 +126,78 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
   }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, viewMode, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
+    if (!accessToken) return;
     try {
       setIsLoading(true);
       setError(null);
-      const response = await window.gapi.client.request({
-        path: 'https://www.googleapis.com/calendar/v3/users/me/calendarList',
+      const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+        headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
       });
-      const items = (response.result as any).items as Calendar[];
-      setCalendars(items || []);
-    } catch (err: any) {
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.error?.message || response.statusText,
+          status: response.status
+        };
+      }
+
+      const data = await response.json();
+      setCalendars(data.items || []);
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error("Error fetching calendars:", err);
-      setError(`Failed to fetch calendars: ${err.result?.error?.message || err.message}`);
-      if (err.result?.error?.status === 'UNAUTHENTICATED') handleLogout();
+      setError(`Failed to fetch calendars: ${err.message}`);
+      if (err.status === 401) handleLogout();
     } finally {
       setIsLoading(false);
     }
-  }, [handleLogout]);
+  }, [accessToken, handleLogout]);
 
   useEffect(() => {
-    fetchCalendars();
-  }, [fetchCalendars]);
+    if (accessToken) {
+      fetchCalendars();
+    }
+  }, [fetchCalendars, accessToken]);
 
   const fetchEvents = useCallback(async (calendarId: string, timeMin: Date, timeMax: Date): Promise<CalendarEvent[]> => {
+    if (!accessToken) return [];
     try {
-      const response = await window.gapi.client.request({
-        path: `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-        params: {
-          timeMin: timeMin.toISOString(),
-          timeMax: timeMax.toISOString(),
-          singleEvents: true,
-          orderBy: 'startTime',
-          maxResults: 250,
-        },
+      const params = new URLSearchParams({
+        timeMin: timeMin.toISOString(),
+        timeMax: timeMax.toISOString(),
+        singleEvents: 'true',
+        orderBy: 'startTime',
+        maxResults: '250',
       });
-      return (response.result as any).items as CalendarEvent[] || [];
-    } catch (err: any) {
+
+      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`, {
+         headers: {
+          'Authorization': `Bearer ${accessToken}`
+        }
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw {
+          message: errorData.error?.message || response.statusText,
+          status: response.status
+        };
+      }
+
+      const data = await response.json();
+      return data.items || [];
+    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
       console.error(`Error fetching events for ${calendarId}:`, err);
-      setError(`Failed to fetch events for calendar ${calendarId}: ${err.result?.error?.message || err.message}`);
-      if (err.result?.error?.status === 'UNAUTHENTICATED') handleLogout();
+      setError(`Failed to fetch events for calendar ${calendarId}: ${err.message}`);
+      if (err.status === 401) handleLogout();
       return [];
     }
-  }, [handleLogout]);
+  }, [accessToken, handleLogout]);
 
   const runForecast = useCallback(async () => {
     if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
-      // Don't set error here if auto-running, or handle it gracefully.
-      // But for manual run it should show error.
-      // For now, keeping as is, but maybe we should check if it was triggered automatically.
-      // Actually, for auto-run, if fields are missing, we probably just shouldn't run.
-      // But the error message "Please fill all fields" might be annoying on load if fields are empty.
-      // However, fields are persisted, so they likely aren't empty unless first visit.
       if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
         setError("Please fill all fields: Start Balance, Timespan, Credit Calendar, and Debit Calendar.");
         return;
@@ -395,7 +409,6 @@ export function MainApp({ userProfile, handleLogout }: MainAppProps) {
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-ring rounded-md">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={userProfile.picture} alt={userProfile.name} className="w-8 h-8 rounded-full" />
                   <span className="text-sm">{userProfile.name}</span>
                 </button>
