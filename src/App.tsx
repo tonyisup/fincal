@@ -19,7 +19,9 @@ interface AuthContextType {
   accessToken: string | null;
   userProfile: UserProfile | null;
   isRestoringSession: boolean;
+  hasWriteAccess: boolean;
   login: () => void;
+  grantWriteAccess: () => Promise<boolean>;
   handleLogout: () => void;
   error: string | null;
 }
@@ -79,7 +81,26 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isRestoringSession, setIsRestoringSession] = useState(true);
+  const [hasWriteAccess, setHasWriteAccess] = useState(false);
   const navigate = useNavigate();
+
+  // Promise resolver for the write access flow
+  const [writeAccessResolve, setWriteAccessResolve] = useState<((granted: boolean) => void) | null>(null);
+
+  const checkScopes = useCallback(async (token: string) => {
+    try {
+      const response = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${token}`);
+      if (response.ok) {
+        const data = await response.json();
+        const scopes = data.scope.split(' ');
+        const hasCalendar = scopes.includes('https://www.googleapis.com/auth/calendar');
+        const hasEvents = scopes.includes('https://www.googleapis.com/auth/calendar.events');
+        setHasWriteAccess(hasCalendar || hasEvents);
+      }
+    } catch (err) {
+      console.error("Error checking scopes:", err);
+    }
+  }, []);
 
   // Restore session from localStorage on mount
   useEffect(() => {
@@ -104,6 +125,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
               setAccessToken(storedToken);
               setUserProfile(profile);
               setIsSignedIn(true);
+              // Check scopes
+              checkScopes(storedToken);
             } else {
               // Token expired or invalid, clear storage
               localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -127,7 +150,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     restoreSession();
-  }, []);
+  }, [checkScopes]);
 
   const fetchUserProfile = useCallback(async (token: string) => {
     try {
@@ -165,6 +188,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setIsSignedIn(true);
       await fetchUserProfile(token);
+      checkScopes(token);
       navigate('/app');
     },
     onError: (errorResponse) => {
@@ -174,11 +198,41 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
   });
 
+  const loginForWrite = useGoogleLogin({
+    onSuccess: async (tokenResponse) => {
+      const token = tokenResponse.access_token;
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
+      setAccessToken(token);
+      setHasWriteAccess(true);
+
+      if (writeAccessResolve) {
+        writeAccessResolve(true);
+        setWriteAccessResolve(null);
+      }
+    },
+    onError: (errorResponse) => {
+      console.error("Write Access Login Failed:", errorResponse);
+      if (writeAccessResolve) {
+        writeAccessResolve(false);
+        setWriteAccessResolve(null);
+      }
+    },
+    scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
+  });
+
+  const grantWriteAccess = useCallback(() => {
+    return new Promise<boolean>((resolve) => {
+      setWriteAccessResolve(() => resolve);
+      loginForWrite();
+    });
+  }, [loginForWrite]);
+
   const handleLogout = () => {
     googleLogout();
     setIsSignedIn(false);
     setAccessToken(null);
     setUserProfile(null);
+    setHasWriteAccess(false);
 
     // Clear stored authentication data
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
@@ -192,7 +246,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     accessToken,
     userProfile,
     isRestoringSession,
+    hasWriteAccess,
     login,
+    grantWriteAccess,
     handleLogout,
     error,
   };
@@ -202,7 +258,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
 // Routes Component
 function AppRoutes() {
-  const { isSignedIn, isRestoringSession, userProfile, accessToken, handleLogout, login } = useAuth();
+  const { isSignedIn, isRestoringSession, userProfile, accessToken, handleLogout, login, hasWriteAccess, grantWriteAccess } = useAuth();
 
   // Show loading while restoring session
   if (isRestoringSession) {
@@ -230,7 +286,13 @@ function AppRoutes() {
         path="/app"
         element={
           <ProtectedRoute>
-            <MainApp userProfile={userProfile} accessToken={accessToken} handleLogout={handleLogout} />
+            <MainApp
+              userProfile={userProfile}
+              accessToken={accessToken}
+              handleLogout={handleLogout}
+              hasWriteAccess={hasWriteAccess}
+              grantWriteAccess={grantWriteAccess}
+            />
           </ProtectedRoute>
         }
       />

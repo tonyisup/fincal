@@ -36,6 +36,8 @@ interface AddTransactionDialogProps {
   accessToken: string | null;
   onTransactionAdded: () => void;
   handleLogout: () => void;
+  hasWriteAccess: boolean;
+  grantWriteAccess: () => Promise<boolean>;
 }
 
 type Frequency = "ONCE" | "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
@@ -46,6 +48,8 @@ export function AddTransactionDialog({
   accessToken,
   onTransactionAdded,
   handleLogout,
+  hasWriteAccess,
+  grantWriteAccess,
 }: Omit<AddTransactionDialogProps, 'calendars'>) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -61,9 +65,19 @@ export function AddTransactionDialog({
   const [recurrenceCount, setRecurrenceCount] = useState("");
   const [recurrenceUntil, setRecurrenceUntil] = useState<Date | undefined>();
 
+  // Date picker state
+  const [isDateOpen, setIsDateOpen] = useState(false);
+  const [isRecurrenceDateOpen, setIsRecurrenceDateOpen] = useState(false);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!accessToken) return;
+
+    if (!hasWriteAccess) {
+      const granted = await grantWriteAccess();
+      if (!granted) return; // User denied or failed
+    }
+
     if (!description || !amount || !date) {
       setError("Please fill in all required fields.");
       return;
@@ -90,11 +104,11 @@ export function AddTransactionDialog({
         let rrule = `RRULE:FREQ=${frequency === "BIWEEKLY" ? "WEEKLY;INTERVAL=2" : frequency}`;
 
         if (recurrenceUntil) {
-           // RRULE UNTIL must be in UTC YYYYMMDDTHHMMSSZ format
-           const untilStr = format(recurrenceUntil, "yyyyMMdd");
-           rrule += `;UNTIL=${untilStr}T235959Z`;
+          // RRULE UNTIL must be in UTC YYYYMMDDTHHMMSSZ format
+          const untilStr = format(recurrenceUntil, "yyyyMMdd");
+          rrule += `;UNTIL=${untilStr}T235959Z`;
         } else if (recurrenceCount) {
-           rrule += `;COUNT=${recurrenceCount}`;
+          rrule += `;COUNT=${recurrenceCount}`;
         }
 
         recurrence = [rrule];
@@ -166,7 +180,7 @@ export function AddTransactionDialog({
           </DialogDescription>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-4 py-4">
-           {error && (
+          {error && (
             <div className="bg-red-100 text-red-700 text-sm p-3 rounded-md border border-red-200">
               {error}
             </div>
@@ -219,7 +233,7 @@ export function AddTransactionDialog({
 
           <div className="grid grid-cols-4 items-center gap-4">
             <Label className="text-right">Date</Label>
-            <Popover>
+            <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
               <PopoverTrigger asChild>
                 <Button
                   variant={"outline"}
@@ -236,7 +250,10 @@ export function AddTransactionDialog({
                 <Calendar
                   mode="single"
                   selected={date}
-                  onSelect={setDate}
+                  onSelect={(d) => {
+                    setDate(d);
+                    setIsDateOpen(false);
+                  }}
                   initialFocus
                 />
               </PopoverContent>
@@ -263,51 +280,52 @@ export function AddTransactionDialog({
           </div>
 
           {frequency !== "ONCE" && (
-             <div className="space-y-4 border-t pt-4 mt-2">
-                 <div className="text-sm font-medium text-center text-muted-foreground">Recurrence Settings (Optional)</div>
-                 <div className="grid grid-cols-4 items-center gap-4">
-                    <Label htmlFor="count" className="text-right">Times</Label>
-                    <Input
-                        id="count"
-                        type="number"
-                        placeholder="Forever"
-                        value={recurrenceCount}
-                        onChange={(e) => {
-                            setRecurrenceCount(e.target.value);
-                            if(e.target.value) setRecurrenceUntil(undefined);
-                        }}
-                        className="col-span-3"
+            <div className="space-y-4 border-t pt-4 mt-2">
+              <div className="text-sm font-medium text-center text-muted-foreground">Recurrence Settings (Optional)</div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="count" className="text-right">Times</Label>
+                <Input
+                  id="count"
+                  type="number"
+                  placeholder="Forever"
+                  value={recurrenceCount}
+                  onChange={(e) => {
+                    setRecurrenceCount(e.target.value);
+                    if (e.target.value) setRecurrenceUntil(undefined);
+                  }}
+                  className="col-span-3"
+                />
+              </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label className="text-right">Until</Label>
+                <Popover open={isRecurrenceDateOpen} onOpenChange={setIsRecurrenceDateOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant={"outline"}
+                      className={cn(
+                        "col-span-3 justify-start text-left font-normal",
+                        !recurrenceUntil && "text-muted-foreground"
+                      )}
+                    >
+                      <CalendarIcon className="mr-2 h-4 w-4" />
+                      {recurrenceUntil ? format(recurrenceUntil, "PPP") : <span>Forever</span>}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-auto p-0">
+                    <Calendar
+                      mode="single"
+                      selected={recurrenceUntil}
+                      onSelect={(d) => {
+                        setRecurrenceUntil(d);
+                        if (d) setRecurrenceCount("");
+                        setIsRecurrenceDateOpen(false);
+                      }}
+                      initialFocus
                     />
-                 </div>
-                  <div className="grid grid-cols-4 items-center gap-4">
-                    <Label className="text-right">Until</Label>
-                    <Popover>
-                    <PopoverTrigger asChild>
-                        <Button
-                        variant={"outline"}
-                        className={cn(
-                            "col-span-3 justify-start text-left font-normal",
-                            !recurrenceUntil && "text-muted-foreground"
-                        )}
-                        >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {recurrenceUntil ? format(recurrenceUntil, "PPP") : <span>Forever</span>}
-                        </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                        <Calendar
-                        mode="single"
-                        selected={recurrenceUntil}
-                        onSelect={(d) => {
-                            setRecurrenceUntil(d);
-                            if(d) setRecurrenceCount("");
-                        }}
-                        initialFocus
-                        />
-                    </PopoverContent>
-                    </Popover>
-                  </div>
-             </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            </div>
           )}
 
           <DialogFooter>

@@ -37,9 +37,11 @@ interface MainAppProps {
   userProfile: UserProfile | null;
   accessToken: string | null;
   handleLogout: () => void;
+  hasWriteAccess: boolean;
+  grantWriteAccess: () => Promise<boolean>;
 }
 
-export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps) {
+export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess, grantWriteAccess }: MainAppProps) {
   const [calendars, setCalendars] = useState<Calendar[]>([]);
   const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
     const saved = localStorage.getItem('userSettings');
@@ -191,6 +193,11 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
   };
 
   const handleCreateCalendar = async (type: 'credit' | 'debit') => {
+    if (!hasWriteAccess) {
+      const granted = await grantWriteAccess();
+      if (!granted) return; // User denied or failed
+    }
+
     const name = window.prompt("Enter new calendar name:");
     if (name) {
       const newCal = await createCalendar(name);
@@ -534,7 +541,7 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <InputGroupButton variant="ghost" className="font-normal">
-                      {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "Select income calendar"}
+                      {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "--"}
                       <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                     </InputGroupButton>
                   </DropdownMenuTrigger>
@@ -559,7 +566,7 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <InputGroupButton variant="ghost" className="font-normal">
-                      {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "Select expense calendar"}
+                      {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "--"}
                       <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
                     </InputGroupButton>
                   </DropdownMenuTrigger>
@@ -628,13 +635,15 @@ export function MainApp({ userProfile, accessToken, handleLogout }: MainAppProps
             </Button>
             <div className="ml-4">
               <AddTransactionDialog
-                  selectedCreditCalendarId={selectedCreditCalendarId}
-                  selectedDebitCalendarId={selectedDebitCalendarId}
-                  accessToken={accessToken}
-                  onTransactionAdded={() => {
-                      if (autoRun) runForecast();
-                  }}
-                  handleLogout={handleLogout}
+                selectedCreditCalendarId={selectedCreditCalendarId}
+                selectedDebitCalendarId={selectedDebitCalendarId}
+                accessToken={accessToken}
+                onTransactionAdded={() => {
+                  if (autoRun) runForecast();
+                }}
+                handleLogout={handleLogout}
+                hasWriteAccess={hasWriteAccess}
+                grantWriteAccess={grantWriteAccess}
               />
             </div>
           </div>
