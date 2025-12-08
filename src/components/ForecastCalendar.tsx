@@ -1,15 +1,17 @@
 import React, { useMemo } from 'react';
 import { startOfWeek, endOfWeek, eachDayOfInterval, format, isSameDay, addDays, isAfter, isBefore } from 'date-fns';
-import { Info } from 'lucide-react';
+import { Info, Plus, Minus, ExternalLink } from 'lucide-react';
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import type { ForecastEntry } from '../types/calendar';
+import { Button } from './ui/button';
 
 interface ForecastCalendarProps {
   forecast: ForecastEntry[];
   weekStartDay: 0 | 1;
   startDate: Date;
   endDate: Date;
+  onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
 }
 
 interface WeekData {
@@ -25,7 +27,7 @@ const colors = {
   red: '#f87171',
 }
 
-export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }: ForecastCalendarProps) {
+export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, onAddTransaction }: ForecastCalendarProps) {
   // 1. Calculate Global Min/Max Balance for Y-Axis Scaling
   // 1. Calculate Dynamic Min/Max Balance Strategy (Smoothed Sliding Window)
   const getScale = useMemo(() => {
@@ -216,6 +218,7 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }:
             week={week}
             minBalance={getScale(week.start).min ?? 0}
             maxBalance={getScale(week.start).max ?? 100}
+            onAddTransaction={onAddTransaction}
           />
         ))}
       </div>
@@ -224,7 +227,7 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate }:
 
 }
 
-function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance: number, maxBalance: number }) {
+function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void }) {
   // SVG Dimensions
   const height = 100;
   const width = 1000; // Arbitrary units for SVG coordinate system
@@ -349,6 +352,7 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
           key={i}
           day={day}
           transactions={week.transactions.filter(t => isSameDay(t.when, day))}
+          onAddTransaction={onAddTransaction}
         />
       ))}
 
@@ -414,9 +418,13 @@ function WeekRow({ week, minBalance, maxBalance }: { week: WeekData, minBalance:
   );
 }
 
-function DayCell({ day, transactions }: { day: Date, transactions: ForecastEntry[] }) {
+function DayCell({ day, transactions, onAddTransaction }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void }) {
   const isToday = isSameDay(day, new Date());
   const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : null;
+
+  const onEditDay = (date: Date) => {
+    window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank');
+  };
 
   return (
     <div
@@ -428,12 +436,37 @@ function DayCell({ day, transactions }: { day: Date, transactions: ForecastEntry
       )}>
       <div className="flex justify-between items-center">
         <span className={cn(
-          "text-sm font-medium h-7 w-7 flex items-center justify-center rounded-full",
+          transactions.length > 0 ? "text-foreground font-medium" : "text-muted-foreground text-sm",
+          "h-7 w-7 flex items-center justify-center rounded-full",
           isToday && "bg-primary text-primary-foreground"
         )}>
           {format(day, 'd')}
         </span>
         <span>{(format(day, 'd') == '1') && format(day, 'MMM')}</span>
+      </div>
+
+      {/* Hover Buttons */}
+      <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:delay-700 z-20 pointer-events-none">
+        <div className="flex flex-col gap-1 pointer-events-auto bg-background/80 p-1 rounded-md shadow-sm backdrop-blur-sm">
+          <Button
+            onClick={() => onAddTransaction(day, 'credit')}
+            title="Add Income"
+            variant="ghost"
+            style={{ color: colors.green }}
+            size="icon"
+          >
+            <Plus className="w-6 h-6" />
+          </Button>
+          <Button
+            onClick={() => onAddTransaction(day, 'debit')}
+            title="Add Expense"
+            variant="ghost"
+            style={{ color: colors.red }}
+            size="icon"
+          >
+            <Minus className="w-6 h-6" />
+          </Button>
+        </div>
       </div>
 
       {/* Show balance on hover at the bottom? Or maybe just let the popover handle details.
@@ -446,13 +479,22 @@ function DayCell({ day, transactions }: { day: Date, transactions: ForecastEntry
         {transactions.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity">
+              <button className="cursor-pointer text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
                 <Info className="w-4 h-4" />
               </button>
             </PopoverTrigger>
             <PopoverContent className="w-80">
               <div className="space-y-2">
-                <h4 className="font-medium border-b pb-2">{format(day, 'MMMM d, yyyy')}</h4>
+                <h4 className="font-medium border-b pb-2 flex items-center justify-between">
+                  <span>{format(day, 'MMMM d, yyyy')}</span>
+                  <Button
+                    size="icon"
+                    variant="ghost"
+                    onClick={() => onEditDay(day)}
+                  >
+                    <ExternalLink className="w-4 h-4" />
+                  </Button>
+                </h4>
                 <div className="max-h-[300px] overflow-y-auto space-y-2">
                   {transactions.map((tx, idx) => (
                     <div key={idx} className="flex justify-between text-sm items-center">

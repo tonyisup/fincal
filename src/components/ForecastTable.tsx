@@ -1,8 +1,12 @@
+import { useState, useEffect } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from 'date-fns';
-import { SortAsc, SortDesc } from 'lucide-react';
+import { SortAsc, SortDesc, Plus, Minus, Edit, ExternalLink } from 'lucide-react';
+import { Button } from "@/components/ui/button";
 import type { ForecastEntry } from '../types/calendar';
+import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
+import { ButtonGroup } from './ui/button-group';
 
 export type SortDirection = 'asc' | 'desc' | null;
 export type SortKey = 'balance' | 'amount' | 'summary' | 'when' | null;
@@ -13,6 +17,7 @@ interface ForecastTableProps {
     key: SortKey;
     direction: SortDirection;
   };
+  onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
 }
 
 function SortDirectionIcon({ direction }: { direction: SortDirection }) {
@@ -24,7 +29,17 @@ function SortDirectionIcon({ direction }: { direction: SortDirection }) {
     return null;
   }
 }
-export function ForecastTable({ sortedForecast, handleSort, sortConfig }: ForecastTableProps) {
+export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTransaction }: ForecastTableProps) {
+  // colors helper from calendar
+  const colors = {
+    green: '#86efac',
+    red: '#f87171',
+  };
+
+  const onEditDay = (date: Date) => {
+    window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank');
+  };
+
   return (
     <Card>
       <CardContent>
@@ -61,7 +76,56 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig }: Foreca
           <TableBody>
             {sortedForecast.map((entry, index) => (
               <TableRow key={index} id={`row-${index}`}>
-                <TableCell>{format(entry.when, 'MMM dd, yyyy')}</TableCell>
+                <TableCell
+                  className="relative group"
+                >
+                  <div className="flex items-center gap-2">
+                    {format(entry.when, 'MMM dd, yyyy')}
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          className="opacity-0 group-hover:opacity-100"
+                          size="icon"
+                          variant="ghost"
+                        >
+                          <Edit />
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent side="left">
+                        <ButtonGroup className="bg-background">
+                          <Button
+                            onClick={() => onEditDay(entry.when)}
+                            size="icon"
+                          >
+                            <ExternalLink />
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddTransaction(entry.when, 'credit');
+                            }}
+                            size="icon"
+                            title="Add Income"
+                            style={{ color: colors.green }}
+                          >
+                            <Plus />
+                          </Button>
+                          <Button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              onAddTransaction(entry.when, 'debit');
+                            }}
+                            size="icon"
+                            title="Add Expense"
+                            style={{ color: colors.red }}
+                          >
+                            <Minus />
+                          </Button>
+                        </ButtonGroup>
+                      </PopoverContent>
+                    </Popover>
+                  </div>
+                </TableCell>
                 <TableCell>{entry.summary}</TableCell>
                 <TableCell className={entry.type === 'debit' ? 'text-right text-red-700 dark:text-red-300' : 'text-right text-green-800 dark:text-green-200'}>
                   {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
@@ -72,6 +136,6 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig }: Foreca
           </TableBody>
         </Table>
       </CardContent>
-    </Card>
+    </Card >
   );
 }
