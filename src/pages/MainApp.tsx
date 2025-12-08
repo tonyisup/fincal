@@ -468,9 +468,9 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-6">
           <h1 className="text-xl font-bold">Fin Cal</h1>
-          <Link to="/import" className="text-sm font-medium hover:underline text-muted-foreground">
+          {/* <Link to="/import" className="text-sm font-medium hover:underline text-muted-foreground">
             Import from Bank
-          </Link>
+          </Link> */}
         </div>
         <div className="flex items-center gap-4">
           {userProfile && (
