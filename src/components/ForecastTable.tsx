@@ -97,6 +97,7 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                               e.stopPropagation();
                               onAddTransaction(entry.when, 'credit');
                             }}
+                            variant="ghost"
                             size="icon"
                             title="Add Income"
                             style={{ color: colors.green }}
@@ -104,21 +105,23 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                             <Plus />
                           </Button>
                           <Button
+                            onClick={() => onEditDay(entry.when)}
+                            variant="ghost"
+                            size="icon"
+                          >
+                            <ExternalLink />
+                          </Button>
+                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               onAddTransaction(entry.when, 'debit');
                             }}
+                            variant="ghost"
                             size="icon"
                             title="Add Expense"
                             style={{ color: colors.red }}
                           >
                             <Minus />
-                          </Button>
-                          <Button
-                            onClick={() => onEditDay(entry.when)}
-                            size="icon"
-                          >
-                            <ExternalLink />
                           </Button>
                         </ButtonGroup>
                       </PopoverContent>
