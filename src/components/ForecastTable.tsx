@@ -93,12 +93,6 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                       <PopoverContent side="left">
                         <ButtonGroup className="bg-background">
                           <Button
-                            onClick={() => onEditDay(entry.when)}
-                            size="icon"
-                          >
-                            <ExternalLink />
-                          </Button>
-                          <Button
                             onClick={(e) => {
                               e.stopPropagation();
                               onAddTransaction(entry.when, 'credit');
@@ -119,6 +113,12 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                             style={{ color: colors.red }}
                           >
                             <Minus />
+                          </Button>
+                          <Button
+                            onClick={() => onEditDay(entry.when)}
+                            size="icon"
+                          >
+                            <ExternalLink />
                           </Button>
                         </ButtonGroup>
                       </PopoverContent>
