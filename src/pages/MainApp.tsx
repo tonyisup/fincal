@@ -6,7 +6,6 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Card, CardContent } from "@/components/ui/card";
 import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears, format } from 'date-fns';
 import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut, ChevronDown, Search, Plus } from 'lucide-react';
-import { Link } from 'react-router-dom';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
