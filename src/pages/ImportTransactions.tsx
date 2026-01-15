@@ -204,7 +204,7 @@ export function ImportTransactions() {
 
           if (allStreamsToImport.length > 0) {
               const CHUNK_SIZE = 50;
-              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {{
+              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {
                   // Add delay between batches to avoid rate limiting (skip first batch)
                   if (i > 0) {
                       await new Promise(resolve => setTimeout(resolve, 100));
