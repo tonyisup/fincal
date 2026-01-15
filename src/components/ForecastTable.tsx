@@ -17,6 +17,10 @@ interface ForecastTableProps {
     direction: SortDirection;
   };
   onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
+  warningAmount: number;
+  warningColor: string;
+  warningOperator: '<' | '<=';
+  warningStyle: 'Row Background' | 'Text Color';
 }
 
 function SortDirectionIcon({ direction }: { direction: SortDirection }) {
@@ -28,7 +32,7 @@ function SortDirectionIcon({ direction }: { direction: SortDirection }) {
     return null;
   }
 }
-export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTransaction }: ForecastTableProps) {
+export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: ForecastTableProps) {
   // colors helper from calendar
   const colors = {
     green: '#86efac',
@@ -73,8 +77,15 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
             </TableRow>
           </TableHeader>
           <TableBody>
-            {sortedForecast.map((entry, index) => (
-              <TableRow key={index} id={`row-${index}`}>
+            {sortedForecast.map((entry, index) => {
+              const isWarning = warningOperator === '<' ? entry.balance < warningAmount : entry.balance <= warningAmount;
+              const rowStyle = isWarning ? {
+                backgroundColor: warningStyle === 'Row Background' ? warningColor : undefined,
+                color: warningStyle === 'Text Color' ? warningColor : undefined,
+              } : undefined;
+
+              return (
+              <TableRow key={index} id={`row-${index}`} style={rowStyle}>
                 <TableCell
                   className="relative group"
                 >
@@ -134,7 +145,7 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                 </TableCell>
                 <TableCell className={entry.balance <= 0 ? 'text-right text-red-600 dark:text-red-400' : 'text-right'}>${entry.balance.toFixed(2)}</TableCell>
               </TableRow>
-            ))}
+            )})}
           </TableBody>
         </Table>
       </CardContent>
