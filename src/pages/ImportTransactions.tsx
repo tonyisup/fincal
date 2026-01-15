@@ -212,10 +212,6 @@ export function ImportTransactions() {
                       const amount = Math.abs(stream.average_amount.amount);
                       const description = stream.description || stream.merchant_name || "Unknown Transaction";
                       const title = `$${amount} ${description}`;
-
-                      return {
-                          method: 'POST',
-                          url: `/calendar/v3/calendars/${encodeURIComponent(item.calendarId)}/events`,
                       // Calculate next day for exclusive end date
                       const startDate = new Date(stream.last_date);
                       const endDate = new Date(startDate);
@@ -231,7 +227,6 @@ export function ImportTransactions() {
                               end: { date: endDateStr },
                               recurrence: [mapPlaidFrequencyToRRule(stream.frequency)],
                               transparency: "transparent"
-                          }
                           },
                           contentId: `${i + idx}`
                       };
