@@ -241,6 +241,13 @@ export function ImportTransactions() {
                   if (!response.ok) {
                       throw new Error(`Batch request failed: ${response.statusText}`);
                   }
+
+                  // Optional: Parse batch response to detect individual failures
+                  const responseText = await response.text();
+                  const failureCount = (responseText.match(/HTTP\/1\.1 [45]\d{2}/g) || []).length;
+                  if (failureCount > 0) {
+                      console.warn(`${failureCount} event(s) failed to import in this batch`);
+                  }
               }
           }
 
