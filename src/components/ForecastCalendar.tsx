@@ -12,6 +12,10 @@ interface ForecastCalendarProps {
   startDate: Date;
   endDate: Date;
   onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
+  warningAmount: number;
+  warningColor: string;
+  warningOperator: '<' | '<=';
+  warningStyle: 'Row Background' | 'Text Color';
 }
 
 interface WeekData {
@@ -27,7 +31,7 @@ const colors = {
   red: '#f87171',
 }
 
-export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, onAddTransaction }: ForecastCalendarProps) {
+export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: ForecastCalendarProps) {
   // 1. Calculate Global Min/Max Balance for Y-Axis Scaling
   // 1. Calculate Dynamic Min/Max Balance Strategy (Smoothed Sliding Window)
   const getScale = useMemo(() => {
@@ -219,6 +223,10 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, o
             minBalance={getScale(week.start).min ?? 0}
             maxBalance={getScale(week.start).max ?? 100}
             onAddTransaction={onAddTransaction}
+            warningAmount={warningAmount}
+            warningColor={warningColor}
+            warningOperator={warningOperator}
+            warningStyle={warningStyle}
           />
         ))}
       </div>
@@ -227,13 +235,13 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, o
 
 }
 
-function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void }) {
+function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: 'Row Background' | 'Text Color' }) {
   // SVG Dimensions
   const height = 100;
   const width = 1000; // Arbitrary units for SVG coordinate system
 
   // Calculate SVG Path and Vertical Lines
-  const { pathData, verticalLines, renderMin, renderMax } = useMemo(() => {
+  const { pathData, verticalLines, renderMin, renderMax, dailyBalances } = useMemo(() => {
     // 1. Determine the actual value range for this week to prevent clipping
     let wMin = week.startBalance;
     let wMax = week.startBalance;
@@ -280,6 +288,9 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: Wee
       }
     });
 
+    // Map to store end-of-day balances for DayCell highlighting
+    const dailyBalances = new Map<number, number>();
+
     // Process transactions day by day, distributing them evenly within each day
     week.days.forEach((_, dayIndex) => {
       const dayTransactions = transactionsByDay.get(dayIndex) || [];
@@ -290,6 +301,7 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: Wee
       if (dayTransactions.length === 0) {
         // No transactions in this day - continue horizontally at current balance
         d += ` L ${dayEndX} ${getY(currentBalance)}`;
+        dailyBalances.set(dayIndex, currentBalance);
         return;
       }
 
@@ -319,12 +331,13 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: Wee
 
       // After all transactions in the day, continue to end of day at current balance
       d += ` L ${dayEndX} ${getY(currentBalance)}`;
+      dailyBalances.set(dayIndex, currentBalance);
     });
 
     // Draw to end of week
     d += ` L ${width} ${getY(currentBalance)}`;
 
-    return { pathData: d, verticalLines: verticalLinesData, renderMin: rMin, renderMax: rMax };
+    return { pathData: d, verticalLines: verticalLinesData, renderMin: rMin, renderMax: rMax, dailyBalances };
   }, [week, minBalance, maxBalance]);
 
   // Calculate Gradient Zero-Crossing
@@ -353,6 +366,11 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: Wee
           day={day}
           transactions={week.transactions.filter(t => isSameDay(t.when, day))}
           onAddTransaction={onAddTransaction}
+          currentBalance={dailyBalances.get(i) ?? week.startBalance}
+          warningAmount={warningAmount}
+          warningColor={warningColor}
+          warningOperator={warningOperator}
+          warningStyle={warningStyle}
         />
       ))}
 
@@ -418,13 +436,15 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction }: { week: Wee
   );
 }
 
-function DayCell({ day, transactions, onAddTransaction }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void }) {
+function DayCell({ day, transactions, onAddTransaction, currentBalance, warningAmount, warningColor, warningOperator, warningStyle }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, currentBalance: number, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: 'Row Background' | 'Text Color' }) {
   const isToday = isSameDay(day, new Date());
-  const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : null;
+  const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : currentBalance;
 
   const onEditDay = (date: Date) => {
     window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank');
   };
+
+  const isWarning = warningOperator === '<' ? currentBalance < warningAmount : currentBalance <= warningAmount;
 
   return (
     <div
@@ -433,13 +453,21 @@ function DayCell({ day, transactions, onAddTransaction }: { day: Date, transacti
         "border-r min-h-[120px] p-2 flex flex-col justify-between relative group hover:bg-muted/10 transition-colors",
         isToday && "bg-blue-400/20",
         (format(day, 'd') == '1') && "bg-gray-400/20"
-      )}>
+      )}
+      style={{
+        backgroundColor: (isWarning && warningStyle === 'Row Background') ? warningColor : undefined,
+      }}
+      >
       <div className="flex justify-between items-center">
         <span className={cn(
           transactions.length > 0 ? "text-foreground font-medium" : "text-muted-foreground text-sm",
           "h-7 w-7 flex items-center justify-center rounded-full",
           isToday && "bg-primary text-primary-foreground"
-        )}>
+        )}
+        style={{
+          color: (isWarning && warningStyle === 'Text Color') ? warningColor : undefined,
+        }}
+        >
           {format(day, 'd')}
         </span>
         <span>{(format(day, 'd') == '1') && format(day, 'MMM')}</span>

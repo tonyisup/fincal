@@ -31,6 +31,10 @@ interface UserSettings {
   autoRun: boolean;
   weekStartDay: 0 | 1;
   viewMode: 'table' | 'calendar';
+  warningAmount: number;
+  warningColor: string;
+  warningOperator: '<' | '<=';
+  warningStyle: 'Row Background' | 'Text Color';
 }
 
 interface MainAppProps {
@@ -66,6 +70,26 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>(() => {
     const saved = localStorage.getItem('userSettings');
     return saved ? (JSON.parse(saved).viewMode || 'calendar') : 'calendar';
+  });
+
+  const [warningAmount, setWarningAmount] = useState<number>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved && JSON.parse(saved).warningAmount !== undefined ? JSON.parse(saved).warningAmount : 100;
+  });
+
+  const [warningColor, setWarningColor] = useState<string>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved && JSON.parse(saved).warningColor ? JSON.parse(saved).warningColor : '#FFFF00';
+  });
+
+  const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved && JSON.parse(saved).warningOperator ? JSON.parse(saved).warningOperator : '<';
+  });
+
+  const [warningStyle, setWarningStyle] = useState<'Row Background' | 'Text Color'>(() => {
+    const saved = localStorage.getItem('userSettings');
+    return saved && JSON.parse(saved).warningStyle ? JSON.parse(saved).warningStyle : 'Row Background';
   });
 
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
@@ -110,6 +134,10 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
           if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
           if (parsed.weekStartDay !== undefined) setWeekStartDay(parsed.weekStartDay);
           if (parsed.viewMode) setViewMode(parsed.viewMode);
+          if (parsed.warningAmount !== undefined) setWarningAmount(parsed.warningAmount);
+          if (parsed.warningColor) setWarningColor(parsed.warningColor);
+          if (parsed.warningOperator) setWarningOperator(parsed.warningOperator);
+          if (parsed.warningStyle) setWarningStyle(parsed.warningStyle);
         } catch (e) {
           console.error("Failed to parse user settings", e);
         }
@@ -129,13 +157,17 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
         autoRun,
         weekStartDay,
         viewMode,
+        warningAmount,
+        warningColor,
+        warningOperator,
+        warningStyle,
       };
       localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
 
       // Also update global settings as a fallback/cache for initial load
       localStorage.setItem('userSettings', JSON.stringify(settings));
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, viewMode, userProfile, settingsLoaded]);
+  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, viewMode, warningAmount, warningColor, warningOperator, warningStyle, userProfile, settingsLoaded]);
 
   const fetchCalendars = useCallback(async () => {
     if (!accessToken) return;
@@ -616,6 +648,65 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
                 </DropdownMenu>
               </InputGroupAddon>
             </InputGroup>
+
+            <InputGroup className="flex justify-between">
+              <InputGroupText>Warning Amount</InputGroupText>
+              <InputGroupInput
+                id="warning-amount"
+                type="number"
+                className="text-right"
+                placeholder="Enter amount"
+                value={warningAmount}
+                onChange={(e) => setWarningAmount(parseFloat(e.target.value))}
+              />
+            </InputGroup>
+
+            <InputGroup className="flex justify-between">
+              <InputGroupText>Warning Color</InputGroupText>
+              <InputGroupInput
+                id="warning-color"
+                type="color"
+                className="w-full h-10 p-0 border-0"
+                value={warningColor}
+                onChange={(e) => setWarningColor(e.target.value)}
+              />
+            </InputGroup>
+
+            <InputGroup className="flex justify-between">
+              <InputGroupText>Warning Condition</InputGroupText>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      Balance {warningOperator} Amount
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setWarningOperator('<')}>Below (&lt;)</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWarningOperator('<=')}>Below or Equal (&le;)</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
+            </InputGroup>
+
+            <InputGroup className="flex justify-between">
+              <InputGroupText>Highlight Style</InputGroupText>
+              <InputGroupAddon>
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <InputGroupButton variant="ghost" className="font-normal">
+                      {warningStyle}
+                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                    </InputGroupButton>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end">
+                    <DropdownMenuItem onClick={() => setWarningStyle('Row Background')}>Row Background</DropdownMenuItem>
+                    <DropdownMenuItem onClick={() => setWarningStyle('Text Color')}>Text Color</DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </InputGroupAddon>
+            </InputGroup>
           </div>
 
           <div className="flex gap-4 items-end flex-wrap">
@@ -723,6 +814,10 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
           handleSort={handleSort}
           sortConfig={sortConfig}
           onAddTransaction={handleAddTransaction}
+          warningAmount={warningAmount}
+          warningColor={warningColor}
+          warningOperator={warningOperator}
+          warningStyle={warningStyle}
         />
       ) : (
         <ForecastCalendar
@@ -741,6 +836,10 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
             }
           })()}
           onAddTransaction={handleAddTransaction}
+          warningAmount={warningAmount}
+          warningColor={warningColor}
+          warningOperator={warningOperator}
+          warningStyle={warningStyle}
         />
       )}
     </div>
