@@ -215,7 +215,7 @@ export function ImportTransactions() {
 
                       return {
                           method: 'POST',
-                          url: `/calendar/v3/calendars/${item.calendarId}/events`,
+                          url: `/calendar/v3/calendars/${encodeURIComponent(item.calendarId)}/events`,
                           body: {
                               summary: title,
                               start: { date: stream.last_date },
