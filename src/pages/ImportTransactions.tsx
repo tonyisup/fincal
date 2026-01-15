@@ -15,6 +15,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription } from "@/components/ui/dialog";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { createBatchBody } from '@/lib/googleBatch';
 import type { Calendar } from '../types/calendar';
 
 // Types
@@ -191,34 +192,58 @@ export function ImportTransactions() {
       setIsLoading(true);
       setError(null);
       try {
-          // Iterate through groups
-          for (const group of Object.values(groupedTransactions)) {
-              if (!group.selectedCalendarId) continue;
+          const allStreamsToImport: { stream: PlaidStream; calendarId: string }[] = [];
 
-              // Since Google Batch API is complex to implement with raw fetch and multipart/mixed,
-              // we will do sequential requests for simplicity in this V1.
-              // Parallelizing with Promise.all is better than sequential.
-              await Promise.all(group.streams.map(async (stream) => {
-                 const amount = Math.abs(stream.average_amount.amount);
-                 const description = stream.description || stream.merchant_name || "Unknown Transaction";
-                 const title = `$${amount} ${description}`;
+          Object.values(groupedTransactions).forEach(group => {
+              if (group.selectedCalendarId) {
+                  group.streams.forEach(stream => {
+                      allStreamsToImport.push({ stream, calendarId: group.selectedCalendarId! });
+                  });
+              }
+          });
 
-                 await fetch(`https://www.googleapis.com/calendar/v3/calendars/${group.selectedCalendarId}/events`, {
-                     method: 'POST',
-                     headers: {
-                         'Authorization': `Bearer ${accessToken}`,
-                         'Content-Type': 'application/json'
-                     },
-                     body: JSON.stringify({
-                         summary: title,
-                         start: { date: stream.last_date }, // Use last_date as the start of the *next* occurrence ideally, but first_date is the historical start. using last_date is safer for "current" status
-                         end: { date: stream.last_date },
-                         recurrence: [mapPlaidFrequencyToRRule(stream.frequency)],
-                         transparency: "transparent"
-                     })
-                 });
-              }));
+          if (allStreamsToImport.length > 0) {
+              const CHUNK_SIZE = 50;
+              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {
+                  const chunk = allStreamsToImport.slice(i, i + CHUNK_SIZE);
+
+                  const batchRequests = chunk.map((item, idx) => {
+                      const stream = item.stream;
+                      const amount = Math.abs(stream.average_amount.amount);
+                      const description = stream.description || stream.merchant_name || "Unknown Transaction";
+                      const title = `$${amount} ${description}`;
+
+                      return {
+                          method: 'POST',
+                          url: `/calendar/v3/calendars/${item.calendarId}/events`,
+                          body: {
+                              summary: title,
+                              start: { date: stream.last_date },
+                              end: { date: stream.last_date },
+                              recurrence: [mapPlaidFrequencyToRRule(stream.frequency)],
+                              transparency: "transparent"
+                          },
+                          contentId: `${i + idx}`
+                      };
+                  });
+
+                  const { body, boundary } = createBatchBody(batchRequests);
+
+                  const response = await fetch('https://www.googleapis.com/batch/calendar/v3', {
+                      method: 'POST',
+                      headers: {
+                          'Authorization': `Bearer ${accessToken}`,
+                          'Content-Type': `multipart/mixed; boundary=${boundary}`
+                      },
+                      body: body
+                  });
+
+                  if (!response.ok) {
+                      throw new Error(`Batch request failed: ${response.statusText}`);
+                  }
+              }
           }
+
           setStep('success');
       } catch (err) {
           console.error(err);
