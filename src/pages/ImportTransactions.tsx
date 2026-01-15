@@ -204,17 +204,12 @@ export function ImportTransactions() {
 
           if (allStreamsToImport.length > 0) {
               const CHUNK_SIZE = 50;
-              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {
-                  const chunk = allStreamsToImport.slice(i, i + CHUNK_SIZE);
-
-                  const batchRequests = chunk.map((item, idx) => {
-                      const stream = item.stream;
-              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {
+              for (let i = 0; i < allStreamsToImport.length; i += CHUNK_SIZE) {{
                   // Add delay between batches to avoid rate limiting (skip first batch)
                   if (i > 0) {
                       await new Promise(resolve => setTimeout(resolve, 100));
                   }
-
+                
                   const chunk = allStreamsToImport.slice(i, i + CHUNK_SIZE);
 
                   const batchRequests = chunk.map((item, idx) => {
@@ -222,14 +217,20 @@ export function ImportTransactions() {
                       const amount = Math.abs(stream.average_amount.amount);
                       const description = stream.description || stream.merchant_name || "Unknown Transaction";
                       const title = `$${amount} ${description}`;
-
+                    
+                      // Calculate next day for exclusive end date
+                      const startDate = new Date(stream.last_date);
+                      const endDate = new Date(startDate);
+                      endDate.setDate(endDate.getDate() + 1);
+                      const endDateStr = endDate.toISOString().split('T')[0];
+                    
                       return {
                           method: 'POST',
-                          url: `/calendar/v3/calendars/${item.calendarId}/events`,
+                          url: `/calendar/v3/calendars/${encodeURIComponent(item.calendarId)}/events`,
                           body: {
                               summary: title,
                               start: { date: stream.last_date },
-                              end: { date: stream.last_date },
+                              end: { date: endDateStr },
                               recurrence: [mapPlaidFrequencyToRRule(stream.frequency)],
                               transparency: "transparent"
                           },
