@@ -216,12 +216,22 @@ export function ImportTransactions() {
                       return {
                           method: 'POST',
                           url: `/calendar/v3/calendars/${encodeURIComponent(item.calendarId)}/events`,
+                      // Calculate next day for exclusive end date
+                      const startDate = new Date(stream.last_date);
+                      const endDate = new Date(startDate);
+                      endDate.setDate(endDate.getDate() + 1);
+                      const endDateStr = endDate.toISOString().split('T')[0];
+
+                      return {
+                          method: 'POST',
+                          url: `/calendar/v3/calendars/${encodeURIComponent(item.calendarId)}/events`,
                           body: {
                               summary: title,
                               start: { date: stream.last_date },
-                              end: { date: stream.last_date },
+                              end: { date: endDateStr },
                               recurrence: [mapPlaidFrequencyToRRule(stream.frequency)],
                               transparency: "transparent"
+                          }
                           },
                           contentId: `${i + idx}`
                       };
