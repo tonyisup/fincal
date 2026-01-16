@@ -82,12 +82,12 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
 
   const [warningAmount, setWarningAmount] = useState<number>(() => {
     const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningAmount !== undefined ? JSON.parse(saved).warningAmount : 100;
+    return saved && JSON.parse(saved).warningAmount !== undefined ? JSON.parse(saved).warningAmount : 0;
   });
 
   const [warningColor, setWarningColor] = useState<string>(() => {
     const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningColor ? JSON.parse(saved).warningColor : '#FFFF00';
+    return saved && JSON.parse(saved).warningColor ? JSON.parse(saved).warningColor : '#7b7b54ff';
   });
 
   const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
