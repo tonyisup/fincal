@@ -6,6 +6,8 @@ import { Button } from "@/components/ui/button";
 import type { ForecastEntry } from '../types/calendar';
 import { Popover, PopoverContent, PopoverTrigger } from '@radix-ui/react-popover';
 import { ButtonGroup } from './ui/button-group';
+import type { WarningStyle } from "./ForecastCalendar";
+import { cn } from "@/lib/utils";
 
 export type SortDirection = 'asc' | 'desc' | null;
 export type SortKey = 'balance' | 'amount' | 'summary' | 'when' | null;
@@ -20,7 +22,7 @@ interface ForecastTableProps {
   warningAmount: number;
   warningColor: string;
   warningOperator: '<' | '<=';
-  warningStyle: 'Row Background' | 'Text Color';
+  warningStyle: WarningStyle;
 }
 
 function SortDirectionIcon({ direction }: { direction: SortDirection }) {
@@ -85,67 +87,70 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
               } : undefined;
 
               return (
-              <TableRow key={index} id={`row-${index}`} style={rowStyle}>
-                <TableCell
-                  className="relative group"
-                >
-                  <div className="flex items-center gap-2">
-                    {format(entry.when, 'MMM dd, yyyy')}
-                    <Popover>
-                      <PopoverTrigger asChild>
-                        <Button
-                          className="opacity-0 group-hover:opacity-100"
-                          size="icon"
-                          variant="ghost"
-                        >
-                          <Edit />
-                        </Button>
-                      </PopoverTrigger>
-                      <PopoverContent side="left">
-                        <ButtonGroup className="bg-background">
+                <TableRow key={index} id={`row-${index}`} style={rowStyle}>
+                  <TableCell
+                    className="relative group"
+                  >
+                    <div className="flex items-center gap-2">
+                      {format(entry.when, 'MMM dd, yyyy')}
+                      <Popover>
+                        <PopoverTrigger asChild>
                           <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddTransaction(entry.when, 'credit');
-                            }}
-                            variant="ghost"
+                            className="opacity-0 group-hover:opacity-100"
                             size="icon"
-                            title="Add Income"
-                            style={{ color: colors.green }}
-                          >
-                            <Plus />
-                          </Button>
-                          <Button
-                            onClick={() => onEditDay(entry.when)}
                             variant="ghost"
-                            size="icon"
                           >
-                            <ExternalLink />
+                            <Edit />
                           </Button>
-                          <Button
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              onAddTransaction(entry.when, 'debit');
-                            }}
-                            variant="ghost"
-                            size="icon"
-                            title="Add Expense"
-                            style={{ color: colors.red }}
-                          >
-                            <Minus />
-                          </Button>
-                        </ButtonGroup>
-                      </PopoverContent>
-                    </Popover>
-                  </div>
-                </TableCell>
-                <TableCell>{entry.summary}</TableCell>
-                <TableCell className={entry.type === 'debit' ? 'text-right text-red-700 dark:text-red-300' : 'text-right text-green-800 dark:text-green-200'}>
-                  {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
-                </TableCell>
-                <TableCell className={entry.balance <= 0 ? 'text-right text-red-600 dark:text-red-400' : 'text-right'}>${entry.balance.toFixed(2)}</TableCell>
-              </TableRow>
-            )})}
+                        </PopoverTrigger>
+                        <PopoverContent side="left">
+                          <ButtonGroup className="bg-background">
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddTransaction(entry.when, 'credit');
+                              }}
+                              variant="ghost"
+                              size="icon"
+                              title="Add Income"
+                              style={{ color: colors.green }}
+                            >
+                              <Plus />
+                            </Button>
+                            <Button
+                              onClick={() => onEditDay(entry.when)}
+                              variant="ghost"
+                              size="icon"
+                            >
+                              <ExternalLink />
+                            </Button>
+                            <Button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                onAddTransaction(entry.when, 'debit');
+                              }}
+                              variant="ghost"
+                              size="icon"
+                              title="Add Expense"
+                              style={{ color: colors.red }}
+                            >
+                              <Minus />
+                            </Button>
+                          </ButtonGroup>
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+                  </TableCell>
+                  <TableCell>{entry.summary}</TableCell>
+                  <TableCell className={entry.type === 'debit' ? 'text-right text-red-700 dark:text-red-300' : 'text-right text-green-800 dark:text-green-200'}>
+                    {entry.type === 'debit' ? '-' : '+'}${entry.amount.toFixed(2)}
+                  </TableCell>
+                  <TableCell style={{ color: warningStyle === 'Balance Color' && entry.balance <= warningAmount ? warningColor : undefined }} className={cn(
+                    entry.balance <= 0 ? 'text-right text-red-600 dark:text-red-400' : 'text-right',
+                  )}>${entry.balance.toFixed(2)}</TableCell>
+                </TableRow>
+              )
+            })}
           </TableBody>
         </Table>
       </CardContent>

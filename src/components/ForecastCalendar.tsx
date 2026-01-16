@@ -6,6 +6,7 @@ import { cn } from "@/lib/utils";
 import type { ForecastEntry } from '../types/calendar';
 import { Button } from './ui/button';
 
+export type WarningStyle = 'Row Background' | 'Text Color' | 'Balance Color';
 interface ForecastCalendarProps {
   forecast: ForecastEntry[];
   weekStartDay: 0 | 1;
@@ -15,7 +16,7 @@ interface ForecastCalendarProps {
   warningAmount: number;
   warningColor: string;
   warningOperator: '<' | '<=';
-  warningStyle: 'Row Background' | 'Text Color';
+  warningStyle: WarningStyle;
 }
 
 interface WeekData {
@@ -235,7 +236,7 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, o
 
 }
 
-function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: 'Row Background' | 'Text Color' }) {
+function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: WarningStyle }) {
   // SVG Dimensions
   const height = 100;
   const width = 1000; // Arbitrary units for SVG coordinate system
@@ -436,7 +437,7 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount
   );
 }
 
-function DayCell({ day, transactions, onAddTransaction, currentBalance, warningAmount, warningColor, warningOperator, warningStyle }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, currentBalance: number, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: 'Row Background' | 'Text Color' }) {
+function DayCell({ day, transactions, onAddTransaction, currentBalance, warningAmount, warningColor, warningOperator, warningStyle }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, currentBalance: number, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: WarningStyle }) {
   const isToday = isSameDay(day, new Date());
   const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : currentBalance;
 
@@ -457,16 +458,16 @@ function DayCell({ day, transactions, onAddTransaction, currentBalance, warningA
       style={{
         backgroundColor: (isWarning && warningStyle === 'Row Background') ? warningColor : undefined,
       }}
-      >
+    >
       <div className="flex justify-between items-center">
         <span className={cn(
           transactions.length > 0 ? "text-foreground font-medium" : "text-muted-foreground text-sm",
           "h-7 w-7 flex items-center justify-center rounded-full",
           isToday && "bg-primary text-primary-foreground"
         )}
-        style={{
-          color: (isWarning && warningStyle === 'Text Color') ? warningColor : undefined,
-        }}
+          style={{
+            color: (isWarning && warningStyle === 'Text Color') ? warningColor : undefined,
+          }}
         >
           {format(day, 'd')}
         </span>

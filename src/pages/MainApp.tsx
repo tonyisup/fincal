@@ -22,6 +22,14 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, InputGroupButton } from '@/components/ui/input-group';
 import { ButtonGroup } from '@/components/ui/button-group';
+import { type WarningStyle } from '@/components/ForecastCalendar';
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "@/components/ui/accordion";
+
 
 interface UserSettings {
   selectedCreditCalendarId: string | undefined;
@@ -34,7 +42,7 @@ interface UserSettings {
   warningAmount: number;
   warningColor: string;
   warningOperator: '<' | '<=';
-  warningStyle: 'Row Background' | 'Text Color';
+  warningStyle: WarningStyle;
 }
 
 interface MainAppProps {
@@ -87,7 +95,7 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
     return saved && JSON.parse(saved).warningOperator ? JSON.parse(saved).warningOperator : '<';
   });
 
-  const [warningStyle, setWarningStyle] = useState<'Row Background' | 'Text Color'>(() => {
+  const [warningStyle, setWarningStyle] = useState<WarningStyle>(() => {
     const saved = localStorage.getItem('userSettings');
     return saved && JSON.parse(saved).warningStyle ? JSON.parse(saved).warningStyle : 'Row Background';
   });
@@ -495,7 +503,7 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
   };
 
   return (
-    <div className="container mx-auto p-4 space-y-6">
+    <div className="container md:w-6xl mx-auto p-4 space-y-6">
       <div className="flex justify-between items-center">
         <div className="flex items-center gap-6">
           <h1 className="text-xl font-bold">Fin Cal</h1>
@@ -543,170 +551,196 @@ export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess
 
       <Card>
         <CardContent className="space-y-6 pt-6">
-          <div className="grid sm:grid-cols-2 gap-4">
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Starting Balance</InputGroupText>
-              <InputGroupInput
-                id="start-balance"
-                type="number"
-                className="text-right"
-                placeholder="Enter starting balance"
-                value={startBalance}
-                onChange={(e) => setStartBalance(e.target.value)}
-              />
-            </InputGroup>
+          <div className="grid sm:grid-cols-4 gap-4">
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Forecast Duration</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      {timespan === '1M' ? '1 Month' :
-                        timespan === '3M' ? '3 Months' :
-                          timespan === '6M' ? '6 Months' :
-                            timespan === '1Y' ? '1 Year' :
-                              timespan === '2Y' ? '2 Years' : timespan}
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setTimespan("1M")}>1 Month</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTimespan("3M")}>3 Months</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTimespan("6M")}>6 Months</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTimespan("1Y")}>1 Year</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setTimespan("2Y")}>2 Years</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+            <Accordion type="multiple" defaultValue={["source-settings", "forecast-settings"]} className="col-span-full">
+              <AccordionItem value="source-settings">
+                <AccordionTrigger>Source Settings</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Income Calendar</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "--"}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {calendars.map(calendar => (
+                              <DropdownMenuItem key={calendar.id} onClick={() => setSelectedCreditCalendarId(calendar.id)}>
+                                {calendar.summary}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleCreateCalendar('credit')}>
+                              <Plus className="mr-2 h-4 w-4" /> Create new...
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Income Calendar</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "--"}
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {calendars.map(calendar => (
-                      <DropdownMenuItem key={calendar.id} onClick={() => setSelectedCreditCalendarId(calendar.id)}>
-                        {calendar.summary}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleCreateCalendar('credit')}>
-                      <Plus className="mr-2 h-4 w-4" /> Create new...
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Expense Calendar</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "--"}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            {calendars.map(calendar => (
+                              <DropdownMenuItem key={calendar.id} onClick={() => setSelectedDebitCalendarId(calendar.id)}>
+                                {calendar.summary}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuSeparator />
+                            <DropdownMenuItem onClick={() => handleCreateCalendar('debit')}>
+                              <Plus className="mr-2 h-4 w-4" /> Create new...
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Expense Calendar</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "--"}
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    {calendars.map(calendar => (
-                      <DropdownMenuItem key={calendar.id} onClick={() => setSelectedDebitCalendarId(calendar.id)}>
-                        {calendar.summary}
-                      </DropdownMenuItem>
-                    ))}
-                    <DropdownMenuSeparator />
-                    <DropdownMenuItem onClick={() => handleCreateCalendar('debit')}>
-                      <Plus className="mr-2 h-4 w-4" /> Create new...
-                    </DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+              <AccordionItem value="forecast-settings">
+                <AccordionTrigger>Forecast Settings</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Starting Balance</InputGroupText>
+                      <InputGroupInput
+                        id="start-balance"
+                        type="number"
+                        className="text-right"
+                        placeholder="Enter starting balance"
+                        value={startBalance}
+                        onChange={(e) => setStartBalance(e.target.value)}
+                      />
+                    </InputGroup>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Start of Week</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      {weekStartDay === 0 ? 'Sunday' : 'Monday'}
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setWeekStartDay(0)}>Sunday</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setWeekStartDay(1)}>Monday</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Forecast Duration</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              {timespan === '1M' ? '1 Month' :
+                                timespan === '3M' ? '3 Months' :
+                                  timespan === '6M' ? '6 Months' :
+                                    timespan === '1Y' ? '1 Year' :
+                                      timespan === '2Y' ? '2 Years' : timespan}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setTimespan("1M")}>1 Month</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimespan("3M")}>3 Months</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimespan("6M")}>6 Months</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimespan("1Y")}>1 Year</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setTimespan("2Y")}>2 Years</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Warning Amount</InputGroupText>
-              <InputGroupInput
-                id="warning-amount"
-                type="number"
-                className="text-right"
-                placeholder="Enter amount"
-                value={warningAmount}
-                onChange={(e) => setWarningAmount(parseFloat(e.target.value))}
-              />
-            </InputGroup>
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Start of Week</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              {weekStartDay === 0 ? 'Sunday' : 'Monday'}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setWeekStartDay(0)}>Sunday</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setWeekStartDay(1)}>Monday</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Warning Color</InputGroupText>
-              <InputGroupInput
-                id="warning-color"
-                type="color"
-                className="w-full h-10 p-0 border-0"
-                value={warningColor}
-                onChange={(e) => setWarningColor(e.target.value)}
-              />
-            </InputGroup>
+              <AccordionItem value="warning-settings">
+                <AccordionTrigger>Warning Settings</AccordionTrigger>
+                <AccordionContent>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Warning Amount</InputGroupText>
+                      <InputGroupInput
+                        id="warning-amount"
+                        type="number"
+                        className="text-right"
+                        placeholder="Enter amount"
+                        value={warningAmount}
+                        onChange={(e) => setWarningAmount(parseFloat(e.target.value))}
+                      />
+                    </InputGroup>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Warning Condition</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      Balance {warningOperator} Amount
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setWarningOperator('<')}>Below (&lt;)</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setWarningOperator('<=')}>Below or Equal (&le;)</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText className="flex-1">Warning Color</InputGroupText>
+                      <InputGroupInput
+                        id="warning-color"
+                        type="color"
+                        className="border-0"
+                        value={warningColor}
+                        onChange={(e) => setWarningColor(e.target.value)}
+                      />
+                    </InputGroup>
 
-            <InputGroup className="flex justify-between">
-              <InputGroupText>Highlight Style</InputGroupText>
-              <InputGroupAddon>
-                <DropdownMenu>
-                  <DropdownMenuTrigger asChild>
-                    <InputGroupButton variant="ghost" className="font-normal">
-                      {warningStyle}
-                      <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                    </InputGroupButton>
-                  </DropdownMenuTrigger>
-                  <DropdownMenuContent align="end">
-                    <DropdownMenuItem onClick={() => setWarningStyle('Row Background')}>Row Background</DropdownMenuItem>
-                    <DropdownMenuItem onClick={() => setWarningStyle('Text Color')}>Text Color</DropdownMenuItem>
-                  </DropdownMenuContent>
-                </DropdownMenu>
-              </InputGroupAddon>
-            </InputGroup>
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Warning Condition</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              Balance {warningOperator} Amount
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setWarningOperator('<')}>Below (&lt;)</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setWarningOperator('<=')}>Below or Equal (&le;)</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
+
+                    <InputGroup className="flex justify-between">
+                      <InputGroupText>Highlight Style</InputGroupText>
+                      <InputGroupAddon>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <InputGroupButton variant="ghost" className="font-normal">
+                              {warningStyle}
+                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
+                            </InputGroupButton>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent align="end">
+                            <DropdownMenuItem onClick={() => setWarningStyle('Row Background')}>Row Background</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setWarningStyle('Text Color')}>Text Color</DropdownMenuItem>
+                            <DropdownMenuItem onClick={() => setWarningStyle('Balance Color')}>Balance Color</DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </InputGroupAddon>
+                    </InputGroup>
+                  </div>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
+
           </div>
 
           <div className="flex gap-4 items-end flex-wrap">
