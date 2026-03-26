@@ -1,10 +1,8 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { Suspense, lazy, useState, useEffect, useCallback, createContext, useContext } from 'react';
 import { useGoogleLogin, googleLogout } from '@react-oauth/google';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { LandingPage } from './pages/LandingPage';
-import { MainApp } from './pages/MainApp';
-import { ImportTransactions } from './pages/ImportTransactions';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import type { UserProfile } from './types/calendar';
@@ -29,6 +27,8 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
+const MainApp = lazy(() => import('./pages/MainApp').then((module) => ({ default: module.MainApp })));
+const ImportTransactions = lazy(() => import('./pages/ImportTransactions').then((module) => ({ default: module.ImportTransactions })));
 
 export const useAuth = () => {
   const context = useContext(AuthContext);
@@ -235,35 +235,44 @@ function AppRoutes() {
   }
 
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          isSignedIn ? <Navigate to="/app" replace /> : <LandingPage signIn={login} />
-        }
-      />
-      <Route path="/privacy" element={<PrivacyPolicy />} />
-      <Route path="/terms" element={<TermsOfService />} />
-      <Route
-        path="/app"
-        element={
-          <MainApp
-            userProfile={userProfile}
-            accessToken={accessToken}
-            handleLogout={handleLogout}
-            hasWriteAccess={hasWriteAccess}
-            grantWriteAccess={grantWriteAccess}
-            login={login}
-          />
-        }
-      />
-      <Route
-        path="/import"
-        element={
-          isSignedIn ? <ImportTransactions /> : <Navigate to="/" replace />
-        }
-      />
-    </Routes>
+    <Suspense
+      fallback={
+        <div className="flex justify-center items-center h-screen">
+          <Loader2 className="h-8 w-8 animate-spin" />
+          <span>Loading...</span>
+        </div>
+      }
+    >
+      <Routes>
+        <Route
+          path="/"
+          element={
+            isSignedIn ? <Navigate to="/app" replace /> : <LandingPage signIn={login} />
+          }
+        />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route
+          path="/app"
+          element={
+            <MainApp
+              userProfile={userProfile}
+              accessToken={accessToken}
+              handleLogout={handleLogout}
+              hasWriteAccess={hasWriteAccess}
+              grantWriteAccess={grantWriteAccess}
+              login={login}
+            />
+          }
+        />
+        <Route
+          path="/import"
+          element={
+            isSignedIn ? <ImportTransactions /> : <Navigate to="/" replace />
+          }
+        />
+      </Routes>
+    </Suspense>
   );
 }
 

@@ -9,6 +9,19 @@ interface LandingPageProps {
 export function LandingPage({ signIn }: LandingPageProps) {
   return (
     <div className="flex flex-col min-h-screen w-full">
+      <header className="w-full border-b border-border/60 bg-background/80 backdrop-blur">
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-4 md:px-6">
+          <div className="text-sm font-semibold tracking-[0.2em] text-muted-foreground uppercase">FinCal</div>
+          <nav className="flex items-center gap-3">
+            <Button asChild variant="ghost">
+              <Link to="/app">Open App</Link>
+            </Button>
+            <Button onClick={signIn} variant="outline">
+              Connect Google
+            </Button>
+          </nav>
+        </div>
+      </header>
       <main className="flex-1 w-full max-w-7xl mx-auto">
         {/* Hero Section */}
         <section className="w-full py-12 md:py-24 lg:py-32 xl:py-48 bg-gradient-to-br from-emerald-500 via-cyan-600 to-slate-900 text-white">
@@ -20,6 +33,9 @@ export function LandingPage({ signIn }: LandingPageProps) {
               <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
                 FinCal turns transaction exports into a forward-looking balance forecast. Start with CSV or Excel, confirm recurring income and bills, and optionally sync the result to Google Calendar.
               </p>
+              <div className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/90">
+                For people who care more about the next 90 days than last month's category breakdown.
+              </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button asChild size="lg">
                   <Link to="/app">Start Forecasting Free</Link>

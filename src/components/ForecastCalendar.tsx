@@ -534,7 +534,7 @@ function DayCell({
 
       {/* Hover Buttons */}
       {enableQuickActions && (
-        <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:delay-700 z-20 pointer-events-none">
+        <div className="absolute inset-0 flex items-center justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 md:group-hover:delay-700 z-20 pointer-events-none">
           <div className="flex flex-col gap-1 pointer-events-auto bg-background/80 p-1 rounded-md shadow-sm backdrop-blur-sm">
             <Button
               onClick={() => onAddTransaction(day, 'credit')}
@@ -568,7 +568,7 @@ function DayCell({
         {transactions.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="cursor-pointer text-muted-foreground hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
+              <button className="cursor-pointer text-muted-foreground hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
                 <Info className="w-4 h-4" />
               </button>
             </PopoverTrigger>
@@ -605,7 +605,7 @@ function DayCell({
           </Popover>
         )}
         {finalBalance !== null && (
-          <div className="opacity-0 group-hover:opacity-100 transition-opacity text-xs text-right font-mono text-muted-foreground mt-auto z-20 pointer-events-none">
+          <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-xs text-right font-mono text-muted-foreground mt-auto z-20 pointer-events-none">
             ${finalBalance.toFixed(0)}
           </div>
         )}

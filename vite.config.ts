@@ -9,6 +9,18 @@ export default defineConfig({
     react(),
     tailwindcss(),
   ],
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          react: ['react', 'react-dom', 'react-router-dom'],
+          google: ['@react-oauth/google'],
+          sheets: ['xlsx'],
+          ui: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover'],
+        },
+      },
+    },
+  },
   resolve: {
     alias: {
       '@': resolve(__dirname, 'src'),

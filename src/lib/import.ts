@@ -1,4 +1,3 @@
-import * as XLSX from 'xlsx';
 import { format, isValid, parse, parseISO } from 'date-fns';
 import type {
   ImportColumnMapping,
@@ -70,6 +69,7 @@ function parseAmountValue(value: string | undefined) {
 }
 
 export async function parseImportFile(file: File): Promise<ImportPreview> {
+  const XLSX = await import('xlsx');
   const buffer = await file.arrayBuffer();
   const workbook = XLSX.read(buffer, { type: 'array', raw: false });
   const sheetName = workbook.SheetNames[0];
