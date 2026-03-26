@@ -165,10 +165,11 @@ export function AddTransactionDialog({
       // We don't reset form here because useEffect will do it on next open
       // but cleaning up is good practice if we didn't have the effect.
       onTransactionAdded();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating transaction:", err);
-      setError(`Failed to create transaction: ${err.message}`);
-      if (err.status === 401) {
+      const message = err instanceof Error ? err.message : 'Unknown error';
+      setError(`Failed to create transaction: ${message}`);
+      if (typeof err === 'object' && err !== null && 'status' in err && err.status === 401) {
         handleLogout();
       }
     } finally {

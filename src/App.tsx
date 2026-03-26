@@ -8,8 +8,6 @@ import { ImportTransactions } from './pages/ImportTransactions';
 import { PrivacyPolicy } from './pages/PrivacyPolicy';
 import { TermsOfService } from './pages/TermsOfService';
 import type { UserProfile } from './types/calendar';
-import { Spinner } from './components/ui/spinner';
-import { Button } from './components/ui/button';
 
 // Storage keys for persistence
 const STORAGE_KEYS = {
@@ -39,47 +37,6 @@ export const useAuth = () => {
   }
   return context;
 };
-
-// Protected Route Component
-function ProtectedRoute({ children }: { children: React.ReactNode }) {
-  const { isSignedIn, isRestoringSession, login, error } = useAuth();
-  const [hasRequestedLogin, setHasRequestedLogin] = useState(false);
-
-  useEffect(() => {
-    if (!isRestoringSession && !isSignedIn && !hasRequestedLogin) {
-      setHasRequestedLogin(true);
-      login();
-    }
-  }, [isRestoringSession, isSignedIn, hasRequestedLogin, login]);
-
-  if (isRestoringSession) {
-    return (
-      <div className="flex justify-center items-center h-screen">
-        <Spinner />
-      </div>
-    );
-  }
-
-  // If error occurred (e.g. user cancelled login), redirect to landing
-  if (error && !isSignedIn) {
-    return <Navigate to="/" replace />;
-  }
-
-  if (!isSignedIn) {
-    // Show spinner while waiting for login interaction
-    return (
-      <div className="flex justify-center items-center h-screen flex-col gap-4">
-        <Spinner />
-        <p className="text-muted-foreground">Please sign in to continue...</p>
-        <Button onClick={() => login()} variant="default">
-          Sign In
-        </Button>
-      </div>
-    );
-  }
-
-  return <>{children}</>;
-}
 
 // Auth Provider Component
 function AuthProvider({ children }: { children: React.ReactNode }) {
@@ -282,11 +239,7 @@ function AppRoutes() {
       <Route
         path="/"
         element={
-          isSignedIn ? (
-            <Navigate to="/app" replace />
-          ) : (
-            <LandingPage signIn={login} />
-          )
+          isSignedIn ? <Navigate to="/app" replace /> : <LandingPage signIn={login} />
         }
       />
       <Route path="/privacy" element={<PrivacyPolicy />} />
@@ -294,23 +247,20 @@ function AppRoutes() {
       <Route
         path="/app"
         element={
-          <ProtectedRoute>
-            <MainApp
-              userProfile={userProfile}
-              accessToken={accessToken}
-              handleLogout={handleLogout}
-              hasWriteAccess={hasWriteAccess}
-              grantWriteAccess={grantWriteAccess}
-            />
-          </ProtectedRoute>
+          <MainApp
+            userProfile={userProfile}
+            accessToken={accessToken}
+            handleLogout={handleLogout}
+            hasWriteAccess={hasWriteAccess}
+            grantWriteAccess={grantWriteAccess}
+            login={login}
+          />
         }
       />
       <Route
         path="/import"
         element={
-          <ProtectedRoute>
-            <ImportTransactions />
-          </ProtectedRoute>
+          isSignedIn ? <ImportTransactions /> : <Navigate to="/" replace />
         }
       />
     </Routes>

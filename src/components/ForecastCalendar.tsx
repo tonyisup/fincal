@@ -17,6 +17,8 @@ interface ForecastCalendarProps {
   warningColor: string;
   warningOperator: '<' | '<=';
   warningStyle: WarningStyle;
+  enableQuickActions?: boolean;
+  onOpenExternalDate?: (date: Date) => void;
 }
 
 interface WeekData {
@@ -32,7 +34,19 @@ const colors = {
   red: '#f87171',
 }
 
-export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: ForecastCalendarProps) {
+export function ForecastCalendar({
+  forecast,
+  weekStartDay,
+  startDate,
+  endDate,
+  onAddTransaction,
+  warningAmount,
+  warningColor,
+  warningOperator,
+  warningStyle,
+  enableQuickActions = true,
+  onOpenExternalDate,
+}: ForecastCalendarProps) {
   // 1. Calculate Global Min/Max Balance for Y-Axis Scaling
   // 1. Calculate Dynamic Min/Max Balance Strategy (Smoothed Sliding Window)
   const getScale = useMemo(() => {
@@ -228,6 +242,8 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, o
             warningColor={warningColor}
             warningOperator={warningOperator}
             warningStyle={warningStyle}
+            enableQuickActions={enableQuickActions}
+            onOpenExternalDate={onOpenExternalDate}
           />
         ))}
       </div>
@@ -236,7 +252,29 @@ export function ForecastCalendar({ forecast, weekStartDay, startDate, endDate, o
 
 }
 
-function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: { week: WeekData, minBalance: number, maxBalance: number, onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: WarningStyle }) {
+function WeekRow({
+  week,
+  minBalance,
+  maxBalance,
+  onAddTransaction,
+  warningAmount,
+  warningColor,
+  warningOperator,
+  warningStyle,
+  enableQuickActions,
+  onOpenExternalDate,
+}: {
+  week: WeekData;
+  minBalance: number;
+  maxBalance: number;
+  onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
+  warningAmount: number;
+  warningColor: string;
+  warningOperator: '<' | '<=';
+  warningStyle: WarningStyle;
+  enableQuickActions: boolean;
+  onOpenExternalDate?: (date: Date) => void;
+}) {
   // SVG Dimensions
   const height = 100;
   const width = 1000; // Arbitrary units for SVG coordinate system
@@ -372,6 +410,8 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount
           warningColor={warningColor}
           warningOperator={warningOperator}
           warningStyle={warningStyle}
+          enableQuickActions={enableQuickActions}
+          onOpenExternalDate={onOpenExternalDate}
         />
       ))}
 
@@ -437,13 +477,31 @@ function WeekRow({ week, minBalance, maxBalance, onAddTransaction, warningAmount
   );
 }
 
-function DayCell({ day, transactions, onAddTransaction, currentBalance, warningAmount, warningColor, warningOperator, warningStyle }: { day: Date, transactions: ForecastEntry[], onAddTransaction: (date: Date, type: 'credit' | 'debit') => void, currentBalance: number, warningAmount: number, warningColor: string, warningOperator: '<' | '<=', warningStyle: WarningStyle }) {
+function DayCell({
+  day,
+  transactions,
+  onAddTransaction,
+  currentBalance,
+  warningAmount,
+  warningColor,
+  warningOperator,
+  warningStyle,
+  enableQuickActions,
+  onOpenExternalDate,
+}: {
+  day: Date;
+  transactions: ForecastEntry[];
+  onAddTransaction: (date: Date, type: 'credit' | 'debit') => void;
+  currentBalance: number;
+  warningAmount: number;
+  warningColor: string;
+  warningOperator: '<' | '<=';
+  warningStyle: WarningStyle;
+  enableQuickActions: boolean;
+  onOpenExternalDate?: (date: Date) => void;
+}) {
   const isToday = isSameDay(day, new Date());
   const finalBalance = transactions.length > 0 ? transactions[transactions.length - 1].balance : currentBalance;
-
-  const onEditDay = (date: Date) => {
-    window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank');
-  };
 
   const isWarning = warningOperator === '<' ? currentBalance < warningAmount : currentBalance <= warningAmount;
 
@@ -475,28 +533,30 @@ function DayCell({ day, transactions, onAddTransaction, currentBalance, warningA
       </div>
 
       {/* Hover Buttons */}
-      <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:delay-700 z-20 pointer-events-none">
-        <div className="flex flex-col gap-1 pointer-events-auto bg-background/80 p-1 rounded-md shadow-sm backdrop-blur-sm">
-          <Button
-            onClick={() => onAddTransaction(day, 'credit')}
-            title="Add Income"
-            variant="ghost"
-            style={{ color: colors.green }}
-            size="icon"
-          >
-            <Plus className="w-6 h-6" />
-          </Button>
-          <Button
-            onClick={() => onAddTransaction(day, 'debit')}
-            title="Add Expense"
-            variant="ghost"
-            style={{ color: colors.red }}
-            size="icon"
-          >
-            <Minus className="w-6 h-6" />
-          </Button>
+      {enableQuickActions && (
+        <div className="absolute inset-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity duration-200 group-hover:delay-700 z-20 pointer-events-none">
+          <div className="flex flex-col gap-1 pointer-events-auto bg-background/80 p-1 rounded-md shadow-sm backdrop-blur-sm">
+            <Button
+              onClick={() => onAddTransaction(day, 'credit')}
+              title="Add Income"
+              variant="ghost"
+              style={{ color: colors.green }}
+              size="icon"
+            >
+              <Plus className="w-6 h-6" />
+            </Button>
+            <Button
+              onClick={() => onAddTransaction(day, 'debit')}
+              title="Add Expense"
+              variant="ghost"
+              style={{ color: colors.red }}
+              size="icon"
+            >
+              <Minus className="w-6 h-6" />
+            </Button>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Show balance on hover at the bottom? Or maybe just let the popover handle details.
           The user said: "no words but include the amounts on hover or tap."
@@ -516,13 +576,15 @@ function DayCell({ day, transactions, onAddTransaction, currentBalance, warningA
               <div className="space-y-2">
                 <h4 className="font-medium border-b pb-2 flex items-center justify-between">
                   <span>{format(day, 'MMMM d, yyyy')}</span>
-                  <Button
-                    size="icon"
-                    variant="ghost"
-                    onClick={() => onEditDay(day)}
-                  >
-                    <ExternalLink className="w-4 h-4" />
-                  </Button>
+                  {onOpenExternalDate && (
+                    <Button
+                      size="icon"
+                      variant="ghost"
+                      onClick={() => onOpenExternalDate(day)}
+                    >
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
+                  )}
                 </h4>
                 <div className="max-h-[300px] overflow-y-auto space-y-2">
                   {transactions.map((tx, idx) => (

@@ -23,6 +23,8 @@ interface ForecastTableProps {
   warningColor: string;
   warningOperator: '<' | '<=';
   warningStyle: WarningStyle;
+  onOpenExternalDate?: (date: Date) => void;
+  enableQuickActions?: boolean;
 }
 
 function SortDirectionIcon({ direction }: { direction: SortDirection }) {
@@ -34,15 +36,22 @@ function SortDirectionIcon({ direction }: { direction: SortDirection }) {
     return null;
   }
 }
-export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTransaction, warningAmount, warningColor, warningOperator, warningStyle }: ForecastTableProps) {
+export function ForecastTable({
+  sortedForecast,
+  handleSort,
+  sortConfig,
+  onAddTransaction,
+  warningAmount,
+  warningColor,
+  warningOperator,
+  warningStyle,
+  onOpenExternalDate,
+  enableQuickActions = true,
+}: ForecastTableProps) {
   // colors helper from calendar
   const colors = {
     green: '#86efac',
     red: '#f87171',
-  };
-
-  const onEditDay = (date: Date) => {
-    window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank');
   };
 
   return (
@@ -93,52 +102,56 @@ export function ForecastTable({ sortedForecast, handleSort, sortConfig, onAddTra
                   >
                     <div className="flex items-center gap-2">
                       {format(entry.when, 'MMM dd, yyyy')}
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button
-                            className="opacity-0 group-hover:opacity-100"
-                            size="icon"
-                            variant="ghost"
-                          >
-                            <Edit />
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent side="left">
-                          <ButtonGroup className="bg-background">
+                      {enableQuickActions && (
+                        <Popover>
+                          <PopoverTrigger asChild>
                             <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onAddTransaction(entry.when, 'credit');
-                              }}
-                              variant="ghost"
+                              className="opacity-0 group-hover:opacity-100"
                               size="icon"
-                              title="Add Income"
-                              style={{ color: colors.green }}
-                            >
-                              <Plus />
-                            </Button>
-                            <Button
-                              onClick={() => onEditDay(entry.when)}
                               variant="ghost"
-                              size="icon"
                             >
-                              <ExternalLink />
+                              <Edit />
                             </Button>
-                            <Button
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                onAddTransaction(entry.when, 'debit');
-                              }}
-                              variant="ghost"
-                              size="icon"
-                              title="Add Expense"
-                              style={{ color: colors.red }}
-                            >
-                              <Minus />
-                            </Button>
-                          </ButtonGroup>
-                        </PopoverContent>
-                      </Popover>
+                          </PopoverTrigger>
+                          <PopoverContent side="left">
+                            <ButtonGroup className="bg-background">
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddTransaction(entry.when, 'credit');
+                                }}
+                                variant="ghost"
+                                size="icon"
+                                title="Add Income"
+                                style={{ color: colors.green }}
+                              >
+                                <Plus />
+                              </Button>
+                              {onOpenExternalDate && (
+                                <Button
+                                  onClick={() => onOpenExternalDate(entry.when)}
+                                  variant="ghost"
+                                  size="icon"
+                                >
+                                  <ExternalLink />
+                                </Button>
+                              )}
+                              <Button
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  onAddTransaction(entry.when, 'debit');
+                                }}
+                                variant="ghost"
+                                size="icon"
+                                title="Add Expense"
+                                style={{ color: colors.red }}
+                              >
+                                <Minus />
+                              </Button>
+                            </ButtonGroup>
+                          </PopoverContent>
+                        </Popover>
+                      )}
                     </div>
                   </TableCell>
                   <TableCell>{entry.summary}</TableCell>
