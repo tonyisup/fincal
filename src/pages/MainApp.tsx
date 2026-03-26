@@ -90,6 +90,21 @@ function mappingValue(mapping: ImportColumnMapping, key: keyof ImportColumnMappi
   return mapping[key] ?? '';
 }
 
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+function cadenceLabel(cadence: RecurringCadence) {
+  switch (cadence) {
+    case 'biweekly':
+      return 'Biweekly';
+    case 'semimonthly':
+      return 'Semi-monthly';
+    default:
+      return cadence.charAt(0).toUpperCase() + cadence.slice(1);
+  }
+}
+
 export function MainApp({
   userProfile,
   accessToken,
@@ -450,22 +465,29 @@ export function MainApp({
     );
   };
 
+  const enabledRuleCount = recurringRules.filter((rule) => rule.enabled).length;
+  const totalEnabledRecurring = recurringRules
+    .filter((rule) => rule.enabled)
+    .reduce((sum, rule) => sum + (rule.direction === 'credit' ? rule.amount : -rule.amount), 0);
+
   return (
-    <div className="min-h-screen bg-[radial-gradient(circle_at_top,_rgba(16,185,129,0.15),_transparent_40%),linear-gradient(180deg,rgba(15,23,42,0.05),transparent_30%)]">
-      <div className="container mx-auto max-w-7xl p-4 md:p-6 space-y-6">
-        <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
-          <div>
-            <p className="text-sm uppercase tracking-[0.25em] text-muted-foreground">FinCal</p>
-            <h1 className="text-3xl font-semibold tracking-tight">Cash-flow forecasting without bank sync friction</h1>
-            <p className="text-muted-foreground max-w-3xl mt-2">
-              Import CSV or Excel, confirm recurring income and bills, then generate a forward-looking balance forecast. Google Calendar stays optional.
-            </p>
-          </div>
-          <div className="flex items-center gap-3">
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6">
+        <div className="rounded-[2rem] border border-white/50 bg-background/80 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="border-b border-border/60 px-5 py-4 md:px-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">FinCal</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-5xl">Forecast your next cash crunch before it happens</h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
+                  Import CSV or Excel, let FinCal surface recurring paychecks and bills, then turn that history into a forward-looking balance view.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
             {userProfile ? (
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <button className="cursor-pointer flex items-center gap-2 rounded-full border bg-card px-3 py-2">
+                  <button className="cursor-pointer flex items-center gap-2 rounded-full border bg-card px-3 py-2 shadow-sm">
                     <img src={userProfile.picture} alt={userProfile.name} className="h-8 w-8 rounded-full" />
                     <span className="text-sm">{userProfile.name}</span>
                   </button>
@@ -483,36 +505,89 @@ export function MainApp({
               <Button variant="outline" onClick={login}>Connect Google</Button>
             )}
             <ModeToggle />
+              </div>
+            </div>
           </div>
-        </div>
+          <div className="space-y-6 px-5 py-5 md:px-8 md:py-8">
+            <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+              <div className="rounded-[1.75rem] border border-emerald-200/70 bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(34,197,94,0.02))] p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="rounded-full bg-emerald-600 px-3 py-1 font-medium text-white">Import-first workflow</span>
+                  <span className="rounded-full border border-emerald-700/15 bg-white/70 px-3 py-1 text-emerald-900 dark:bg-card/40 dark:text-emerald-100">No bank connection required</span>
+                  <span className="rounded-full border border-emerald-700/15 bg-white/70 px-3 py-1 text-emerald-900 dark:bg-card/40 dark:text-emerald-100">Google stays optional</span>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 1</p>
+                    <h2 className="mt-2 text-xl font-semibold">Import history</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Upload a transaction export and map the columns once.</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 2</p>
+                    <h2 className="mt-2 text-xl font-semibold">Tune recurring rules</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Keep the likely paychecks and bills. Disable the noisy ones.</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 3</p>
+                    <h2 className="mt-2 text-xl font-semibold">See the forecast</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Look for low points, negative days, and timing gaps.</p>
+                  </div>
+                </div>
+              </div>
 
-        {error && (
-          <div className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-red-700">
-            {error}
-          </div>
-        )}
-        {successMessage && (
-          <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
-            {successMessage}
-          </div>
-        )}
+              <div className="rounded-[1.75rem] border border-border/70 bg-card/80 p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Session Snapshot</p>
+                <div className="mt-4 grid gap-3">
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Imported history</span>
+                    <span className="text-3xl font-semibold">{importedTransactions.length}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Lowest projected balance</span>
+                    <span className="text-xl font-semibold">{lowestPoint ? `$${lowestPoint.balance.toFixed(2)}` : 'Run forecast'}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Days until negative</span>
+                    <span className="text-xl font-semibold">{negativeCountdown === null ? 'Safe' : `${negativeCountdown} days`}</span>
+                  </div>
+                  <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                    Session state lives in this browser. You can connect Google later for export or pull from your existing calendars.
+                  </div>
+                </div>
+              </div>
+            </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1.3fr_0.7fr]">
-          <Card className="border-0 shadow-lg">
+            {error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                {error}
+              </div>
+            )}
+            {successMessage && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+                {successMessage}
+              </div>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-[1.28fr_0.72fr]">
+          <Card className="overflow-hidden border-0 shadow-lg">
             <CardHeader>
-              <CardTitle className="flex items-center gap-2">
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">1</span>
+                Import
+              </div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
                 <Upload className="h-5 w-5" />
                 Import Transactions
               </CardTitle>
-              <CardDescription>Upload CSV or XLSX, review the detected column mapping, then generate recurring rules from your history.</CardDescription>
+              <CardDescription>Upload CSV or XLSX, review the detected column mapping, and promote good history into a usable forecast model.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="rounded-xl border border-dashed p-4">
-                <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg bg-muted/40 px-4 py-10 text-center">
-                  <FileSpreadsheet className="h-8 w-8 text-muted-foreground" />
+              <div className="rounded-[1.5rem] border border-dashed p-4">
+                <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-muted/40 px-4 py-12 text-center transition-colors hover:bg-muted/60">
+                  <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
                   <div>
-                    <p className="font-medium">Upload CSV or Excel</p>
-                    <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session.</p>
+                    <p className="font-medium">Drop in CSV or Excel</p>
+                    <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never hit a FinCal backend.</p>
                   </div>
                   <input
                     type="file"
@@ -530,6 +605,9 @@ export function MainApp({
 
               {preview && mapping && (
                 <div className="space-y-4">
+                  <div className="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
+                    FinCal guessed the mapping below. Check `date`, `description`, and either one signed `amount` column or separate `credit` / `debit` columns before you import.
+                  </div>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {[
                       ['Date column', 'dateColumn'],
@@ -559,13 +637,13 @@ export function MainApp({
                   </div>
 
                   <div className="flex flex-wrap gap-3">
-                    <Button onClick={completeImport}>Import And Detect Recurring Rules</Button>
+                    <Button onClick={completeImport} className="rounded-full px-6">Import And Detect Recurring Rules</Button>
                     <span className="text-sm text-muted-foreground self-center">
                       Previewing {preview.rows.length} rows from your uploaded file.
                     </span>
                   </div>
 
-                  <div className="rounded-lg border">
+                  <div className="overflow-hidden rounded-2xl border">
                     <div className="grid grid-cols-4 gap-2 border-b bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
                       <span>Date</span>
                       <span>Description</span>
@@ -587,7 +665,7 @@ export function MainApp({
               )}
 
               {importIssues.length > 0 && (
-                <div className="rounded-lg border border-amber-200 bg-amber-50 p-4">
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
                   <div className="flex items-center gap-2 font-medium text-amber-900">
                     <AlertCircle className="h-4 w-4" />
                     Import issues
@@ -606,7 +684,11 @@ export function MainApp({
           <div className="space-y-6">
             <Card className="border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Forecast Controls</CardTitle>
+                <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">2</span>
+                  Tune
+                </div>
+                <CardTitle className="text-2xl">Forecast Controls</CardTitle>
                 <CardDescription>Set your balance, horizon, and warning rules. Session data stays in local storage.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
@@ -664,7 +746,7 @@ export function MainApp({
                   </label>
                 </div>
 
-                <Button className="w-full" onClick={generateLocalForecast} disabled={isLoading}>
+                <Button className="w-full rounded-full" onClick={generateLocalForecast} disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Generate Forecast
                 </Button>
@@ -682,10 +764,10 @@ export function MainApp({
                   <input className="w-full rounded-md border bg-background px-3 py-2" type="number" step="0.01" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="Positive income or negative expense" />
                   <input className="w-full rounded-md border bg-background px-3 py-2" type="date" value={manualDate} onChange={(event) => setManualDate(event.target.value)} />
                 </div>
-                <Button variant="outline" className="w-full" onClick={addManualAdjustment}>Add Planned Adjustment</Button>
+                <Button variant="outline" className="w-full rounded-full" onClick={addManualAdjustment}>Add Planned Adjustment</Button>
 
                 {oneOffTransactions.length > 0 && (
-                  <div className="space-y-2 rounded-lg border p-3">
+                  <div className="space-y-2 rounded-2xl border p-3">
                     {oneOffTransactions.slice(-5).reverse().map((transaction) => (
                       <div key={transaction.id} className="flex items-center justify-between gap-3 text-sm">
                         <div>
@@ -711,73 +793,141 @@ export function MainApp({
               </CardContent>
             </Card>
           </div>
-        </div>
+            </div>
 
-        <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+            <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
           <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle>Recurring Rules</CardTitle>
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">3</span>
+                Confirm
+              </div>
+              <CardTitle className="text-2xl">Recurring Rules</CardTitle>
               <CardDescription>Review what FinCal thinks repeats. Disable noisy rules and adjust cadence or amount before forecasting.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {recurringRules.length === 0 ? (
-                <p className="text-sm text-muted-foreground">Import transaction history first to detect recurring income and expenses.</p>
+                <div className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">Import transaction history first to detect recurring income and expenses.</div>
               ) : (
-                recurringRules.map((rule) => (
-                  <div key={rule.id} className="rounded-xl border p-4">
-                    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <input type="checkbox" checked={rule.enabled} onChange={(event) => updateRule(rule.id, { enabled: event.target.checked })} />
-                          <input
-                            className="rounded-md border bg-background px-3 py-1.5 font-medium"
-                            value={rule.label}
-                            onChange={(event) => updateRule(rule.id, { label: event.target.value })}
-                          />
-                        </div>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          Confidence {confidenceLabel(rule.confidence)} ({Math.round(rule.confidence * 100)}%) based on {rule.sourceTransactionIds.length} matching transactions.
-                        </p>
-                      </div>
-                      <div className="grid gap-2 sm:grid-cols-3">
-                        <input
-                          className="rounded-md border bg-background px-3 py-2"
-                          type="number"
-                          step="0.01"
-                          value={rule.amount}
-                          onChange={(event) => updateRule(rule.id, { amount: Number.parseFloat(event.target.value) || 0 })}
-                        />
-                        <select
-                          className="rounded-md border bg-background px-3 py-2"
-                          value={rule.direction}
-                          onChange={(event) => updateRule(rule.id, { direction: event.target.value as 'credit' | 'debit' })}
-                        >
-                          <option value="credit">Income</option>
-                          <option value="debit">Expense</option>
-                        </select>
-                        <select
-                          className="rounded-md border bg-background px-3 py-2"
-                          value={rule.cadence}
-                          onChange={(event) => updateRule(rule.id, { cadence: event.target.value as RecurringCadence })}
-                        >
-                          {cadenceOptions().map((cadence) => (
-                            <option key={cadence} value={cadence}>{cadence}</option>
-                          ))}
-                        </select>
-                      </div>
+                <>
+                  <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr_auto]">
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Enabled rules</p>
+                      <p className="mt-2 text-2xl font-semibold">{enabledRuleCount} / {recurringRules.length}</p>
                     </div>
-                    <div className="mt-3 text-sm text-muted-foreground">
-                      Next occurrences start from anchor date <span className="font-medium text-foreground">{rule.anchorDate}</span>.
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Net recurring flow</p>
+                      <p className="mt-2 text-2xl font-semibold">{formatCurrency(totalEnabledRecurring)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" className="rounded-full" size="sm" onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: true })))}>
+                        Enable all
+                      </Button>
+                      <Button variant="outline" className="rounded-full" size="sm" onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: false })))}>
+                        Disable all
+                      </Button>
                     </div>
                   </div>
-                ))
+
+                  {recurringRules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      className={`rounded-[1.4rem] border p-4 transition-colors ${
+                        rule.enabled
+                          ? 'border-emerald-200/70 bg-[linear-gradient(180deg,rgba(16,185,129,0.06),rgba(255,255,255,0))]'
+                          : 'border-border/70 bg-muted/15 opacity-85'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-2 shadow-sm">
+                              <input type="checkbox" checked={rule.enabled} onChange={(event) => updateRule(rule.id, { enabled: event.target.checked })} />
+                              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                                {rule.enabled ? 'Included' : 'Ignored'}
+                              </span>
+                            </label>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                              rule.direction === 'credit'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-200'
+                            }`}>
+                              {rule.direction === 'credit' ? 'Income' : 'Expense'}
+                            </span>
+                            <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                              {cadenceLabel(rule.cadence)}
+                            </span>
+                            <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                              {confidenceLabel(rule.confidence)} confidence
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <input
+                                className="w-full rounded-xl border bg-background px-4 py-3 text-lg font-semibold shadow-sm"
+                                value={rule.label}
+                                onChange={(event) => updateRule(rule.id, { label: event.target.value })}
+                              />
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                Based on {rule.sourceTransactionIds.length} matching transactions. Anchor date starts at <span className="font-medium text-foreground">{rule.anchorDate}</span>.
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-background/80 px-4 py-3 text-right shadow-sm">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Amount</p>
+                              <p className={rule.direction === 'credit' ? 'mt-2 text-2xl font-semibold text-emerald-700 dark:text-emerald-300' : 'mt-2 text-2xl font-semibold text-red-700 dark:text-red-300'}>
+                                {rule.direction === 'credit' ? '+' : '-'}{formatCurrency(rule.amount)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm sm:grid-cols-3 lg:w-[420px]">
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Amount</span>
+                            <input
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              type="number"
+                              step="0.01"
+                              value={rule.amount}
+                              onChange={(event) => updateRule(rule.id, { amount: Number.parseFloat(event.target.value) || 0 })}
+                            />
+                          </label>
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Direction</span>
+                            <select
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              value={rule.direction}
+                              onChange={(event) => updateRule(rule.id, { direction: event.target.value as 'credit' | 'debit' })}
+                            >
+                              <option value="credit">Income</option>
+                              <option value="debit">Expense</option>
+                            </select>
+                          </label>
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Cadence</span>
+                            <select
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              value={rule.cadence}
+                              onChange={(event) => updateRule(rule.id, { cadence: event.target.value as RecurringCadence })}
+                            >
+                              {cadenceOptions().map((cadence) => (
+                                <option key={cadence} value={cadence}>{cadenceLabel(cadence)}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
               )}
             </CardContent>
           </Card>
 
           <Card className="border-0 shadow-lg">
             <CardHeader>
-              <CardTitle>Optional Google Integration</CardTitle>
+              <CardTitle className="text-2xl">Optional Google Integration</CardTitle>
               <CardDescription>Use Google Calendar as a legacy source or export your confirmed recurring rules back out.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -804,43 +954,23 @@ export function MainApp({
                     </label>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-2">
-                    <Button variant="outline" onClick={importFromGoogleCalendars}>Load History From Google</Button>
-                    <Button variant="outline" onClick={() => void exportRecurringRules()}>
+                    <Button variant="outline" className="rounded-full" onClick={importFromGoogleCalendars}>Load History From Google</Button>
+                    <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
                       Export Enabled Rules To Google
                     </Button>
                   </div>
                 </>
               ) : (
-                <div className="rounded-xl border border-dashed p-4 text-sm text-muted-foreground">
+                <div className="rounded-[1.25rem] border border-dashed p-4 text-sm text-muted-foreground">
                   Connect Google only if you want to import from existing calendars or export confirmed recurring rules.
-                  <Button className="mt-3 w-full" variant="outline" onClick={login}>Connect Google</Button>
+                  <Button className="mt-3 w-full rounded-full" variant="outline" onClick={login}>Connect Google</Button>
                 </div>
               )}
             </CardContent>
           </Card>
-        </div>
+            </div>
 
-        <div className="grid gap-4 md:grid-cols-3">
-          <Card className="border-0 shadow-md">
-            <CardHeader>
-              <CardDescription>Imported history</CardDescription>
-              <CardTitle>{importedTransactions.length}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-0 shadow-md">
-            <CardHeader>
-              <CardDescription>Lowest projected balance</CardDescription>
-              <CardTitle>{lowestPoint ? `$${lowestPoint.balance.toFixed(2)}` : 'Run forecast'}</CardTitle>
-            </CardHeader>
-          </Card>
-          <Card className="border-0 shadow-md">
-            <CardHeader>
-              <CardDescription>Days until negative balance</CardDescription>
-              <CardTitle>{negativeCountdown === null ? 'No negative days' : `${negativeCountdown} days`}</CardTitle>
-            </CardHeader>
-          </Card>
-        </div>
-
+            <div className="rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-sm md:p-5">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div className="flex items-center gap-2">
             <ButtonGroup>
@@ -865,6 +995,7 @@ export function MainApp({
           </div>
         </div>
 
+        <div className="mt-5">
         {viewMode === 'table' ? (
           <ForecastTable
             sortedForecast={sortedForecast}
@@ -893,6 +1024,10 @@ export function MainApp({
             onOpenExternalDate={accessToken ? (date) => window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank') : undefined}
           />
         )}
+        </div>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

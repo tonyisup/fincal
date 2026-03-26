@@ -218,12 +218,29 @@ export function ForecastCalendar({
     return Array.from({ length: 7 }).map((_, i) => addDays(start, i));
   }, [weekStartDay]);
 
+  if (forecast.length === 0) {
+    return (
+      <div className="rounded-[1.5rem] border border-dashed border-border/80 bg-background/80 px-6 py-14 text-center text-sm text-muted-foreground">
+        Generate a forecast to populate the calendar view.
+      </div>
+    );
+  }
+
   return (
-    <div className="border rounded-lg overflow-hidden bg-background">
+    <div className="overflow-hidden rounded-[1.5rem] border border-border/70 bg-background/90 shadow-[0_18px_50px_rgba(15,23,42,0.06)]">
+      <div className="flex items-center justify-between border-b border-border/70 bg-muted/40 px-4 py-3">
+        <div>
+          <p className="text-xs uppercase tracking-[0.28em] text-muted-foreground">Forecast Calendar</p>
+          <p className="text-sm text-muted-foreground">Weekly balance shape with transaction spikes and daily end balances.</p>
+        </div>
+        <div className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+          {weeks.length} weeks
+        </div>
+      </div>
       {/* Header */}
-      <div className="grid grid-cols-7 border-b bg-muted/50">
+      <div className="grid grid-cols-7 border-b bg-background/90">
         {weekDays.map((day, i) => (
-          <div key={i} className="p-2 text-center text-sm font-medium">
+          <div key={i} className="p-3 text-center text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
             <span>{format(day, 'EEE')}</span>
           </div>
         ))}
@@ -397,7 +414,7 @@ function WeekRow({
   const uniqueId = React.useId();
 
   return (
-    <div className="relative grid grid-cols-7 min-h-[120px]">
+    <div className="relative grid grid-cols-7 min-h-[132px]">
       {/* Background Grid Cells */}
       {week.days.map((day, i) => (
         <DayCell
@@ -509,9 +526,10 @@ function DayCell({
     <div
       id={`day-${format(day, 'yyyy-MM-dd')}`}
       className={cn(
-        "border-r min-h-[120px] p-2 flex flex-col justify-between relative group hover:bg-muted/10 transition-colors",
-        isToday && "bg-blue-400/20",
-        (format(day, 'd') == '1') && "bg-gray-400/20"
+        "border-r border-border/50 min-h-[132px] p-3 flex flex-col justify-between relative group transition-colors",
+        isToday && "bg-cyan-500/10",
+        (format(day, 'd') == '1') && "bg-amber-500/10",
+        transactions.length > 0 && "hover:bg-muted/20"
       )}
       style={{
         backgroundColor: (isWarning && warningStyle === 'Row Background') ? warningColor : undefined,
@@ -520,7 +538,7 @@ function DayCell({
       <div className="flex justify-between items-center">
         <span className={cn(
           transactions.length > 0 ? "text-foreground font-medium" : "text-muted-foreground text-sm",
-          "h-7 w-7 flex items-center justify-center rounded-full",
+          "h-8 w-8 flex items-center justify-center rounded-full border border-border/60 bg-background/80 shadow-sm",
           isToday && "bg-primary text-primary-foreground"
         )}
           style={{
@@ -529,13 +547,13 @@ function DayCell({
         >
           {format(day, 'd')}
         </span>
-        <span>{(format(day, 'd') == '1') && format(day, 'MMM')}</span>
+        <span className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{(format(day, 'd') == '1') && format(day, 'MMM')}</span>
       </div>
 
       {/* Hover Buttons */}
       {enableQuickActions && (
         <div className="absolute inset-0 flex items-center justify-end opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity duration-200 md:group-hover:delay-700 z-20 pointer-events-none">
-          <div className="flex flex-col gap-1 pointer-events-auto bg-background/80 p-1 rounded-md shadow-sm backdrop-blur-sm">
+          <div className="flex flex-col gap-1 pointer-events-auto rounded-xl border border-border/60 bg-background/90 p-1 shadow-sm backdrop-blur-sm">
             <Button
               onClick={() => onAddTransaction(day, 'credit')}
               title="Add Income"
@@ -563,7 +581,7 @@ function DayCell({
           The popover handles tap/click.
           For hover, maybe we can show the end-of-day balance at the bottom of the cell.
       */}
-      <div className="flex justify-between items-center">
+      <div className="flex justify-between items-end gap-2">
 
         {transactions.length > 0 && (
           <Popover>
@@ -572,7 +590,7 @@ function DayCell({
                 <Info className="w-4 h-4" />
               </button>
             </PopoverTrigger>
-            <PopoverContent className="w-80">
+            <PopoverContent className="w-80 rounded-2xl border border-border/70">
               <div className="space-y-2">
                 <h4 className="font-medium border-b pb-2 flex items-center justify-between">
                   <span>{format(day, 'MMMM d, yyyy')}</span>
@@ -604,11 +622,18 @@ function DayCell({
             </PopoverContent>
           </Popover>
         )}
-        {finalBalance !== null && (
-          <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-xs text-right font-mono text-muted-foreground mt-auto z-20 pointer-events-none">
-            ${finalBalance.toFixed(0)}
-          </div>
-        )}
+        <div className="space-y-1 text-right">
+          {transactions.length > 0 && (
+            <div className="inline-flex rounded-full bg-background/90 px-2 py-1 text-[10px] font-semibold uppercase tracking-[0.24em] text-muted-foreground shadow-sm">
+              {transactions.length} item{transactions.length === 1 ? '' : 's'}
+            </div>
+          )}
+          {finalBalance !== null && (
+            <div className="opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity text-xs text-right font-mono text-muted-foreground mt-auto z-20 pointer-events-none">
+              ${finalBalance.toFixed(0)}
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );
