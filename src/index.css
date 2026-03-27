@@ -1,7 +1,11 @@
 @import "tailwindcss";
 @import "tw-animate-css";
+
+/* ============================================================
+   DEFAULT STYLE (original)
+   ============================================================ */
 :root {
-  --radius: 0.65rem;
+  --radius: 0.625rem;
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);
@@ -25,7 +29,6 @@
   --chart-3: oklch(0.398 0.07 227.392);
   --chart-4: oklch(0.828 0.189 84.429);
   --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
   --sidebar: oklch(0.985 0 0);
   --sidebar-foreground: oklch(0.145 0 0);
   --sidebar-primary: oklch(0.205 0 0);
@@ -34,6 +37,8 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+  --font-body: "Avenir Next", "Segoe UI", sans-serif;
+  --font-heading: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
 }
 
 .dark {
@@ -70,6 +75,385 @@
   --sidebar-ring: oklch(0.556 0 0);
 }
 
+/* ============================================================
+   LEDGER — Classic Financial
+   Warm ivory, deep navy, gold accents, sharp corners, serif
+   ============================================================ */
+[data-style="ledger"] {
+  --radius: 0.25rem;
+  --font-body: "IBM Plex Sans", "Segoe UI", sans-serif;
+  --font-heading: "DM Serif Display", "IBM Plex Serif", Georgia, serif;
+  --background: oklch(0.98 0.005 80);
+  --foreground: oklch(0.18 0.04 260);
+  --card: oklch(0.99 0.004 80);
+  --card-foreground: oklch(0.18 0.04 260);
+  --popover: oklch(0.99 0.004 80);
+  --popover-foreground: oklch(0.18 0.04 260);
+  --primary: oklch(0.30 0.08 260);
+  --primary-foreground: oklch(0.98 0.005 80);
+  --secondary: oklch(0.95 0.008 80);
+  --secondary-foreground: oklch(0.30 0.08 260);
+  --muted: oklch(0.95 0.008 80);
+  --muted-foreground: oklch(0.50 0.02 260);
+  --accent: oklch(0.75 0.12 85);
+  --accent-foreground: oklch(0.20 0.04 260);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.90 0.01 80);
+  --input: oklch(0.90 0.01 80);
+  --ring: oklch(0.55 0.10 85);
+  --chart-1: oklch(0.30 0.08 260);
+  --chart-2: oklch(0.75 0.12 85);
+  --chart-3: oklch(0.55 0.04 220);
+  --chart-4: oklch(0.65 0.10 50);
+  --chart-5: oklch(0.45 0.08 150);
+  --sidebar: oklch(0.96 0.006 80);
+  --sidebar-foreground: oklch(0.18 0.04 260);
+  --sidebar-primary: oklch(0.30 0.08 260);
+  --sidebar-primary-foreground: oklch(0.98 0.005 80);
+  --sidebar-accent: oklch(0.93 0.01 80);
+  --sidebar-accent-foreground: oklch(0.30 0.08 260);
+  --sidebar-border: oklch(0.90 0.01 80);
+  --sidebar-ring: oklch(0.55 0.10 85);
+}
+
+[data-style="ledger"].dark {
+  --background: oklch(0.17 0.01 260);
+  --foreground: oklch(0.94 0.005 80);
+  --card: oklch(0.21 0.015 260);
+  --card-foreground: oklch(0.94 0.005 80);
+  --popover: oklch(0.21 0.015 260);
+  --popover-foreground: oklch(0.94 0.005 80);
+  --primary: oklch(0.82 0.12 85);
+  --primary-foreground: oklch(0.17 0.01 260);
+  --secondary: oklch(0.25 0.015 260);
+  --secondary-foreground: oklch(0.94 0.005 80);
+  --muted: oklch(0.25 0.015 260);
+  --muted-foreground: oklch(0.65 0.02 80);
+  --accent: oklch(0.55 0.08 250);
+  --accent-foreground: oklch(0.94 0.005 80);
+  --destructive: oklch(0.65 0.18 22);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.65 0.10 85);
+  --chart-1: oklch(0.82 0.12 85);
+  --chart-2: oklch(0.60 0.12 180);
+  --chart-3: oklch(0.65 0.10 50);
+  --chart-4: oklch(0.55 0.15 290);
+  --chart-5: oklch(0.60 0.10 145);
+  --sidebar: oklch(0.20 0.012 260);
+  --sidebar-foreground: oklch(0.94 0.005 80);
+  --sidebar-primary: oklch(0.82 0.12 85);
+  --sidebar-primary-foreground: oklch(0.17 0.01 260);
+  --sidebar-accent: oklch(0.25 0.015 260);
+  --sidebar-accent-foreground: oklch(0.94 0.005 80);
+  --sidebar-border: oklch(1 0 0 / 10%);
+  --sidebar-ring: oklch(0.65 0.10 85);
+}
+
+/* ============================================================
+   NEON MINT — Modern Fintech
+   Vivid greens, dark-first, pill shapes, sans-serif
+   ============================================================ */
+[data-style="neon-mint"] {
+  --radius: 0.75rem;
+  --font-body: "Inter", "SF Pro", system-ui, sans-serif;
+  --font-heading: "Space Grotesk", "Inter", sans-serif;
+  --background: oklch(0.985 0.005 160);
+  --foreground: oklch(0.15 0.02 160);
+  --card: oklch(1 0.002 160);
+  --card-foreground: oklch(0.15 0.02 160);
+  --popover: oklch(1 0.002 160);
+  --popover-foreground: oklch(0.15 0.02 160);
+  --primary: oklch(0.45 0.15 160);
+  --primary-foreground: oklch(0.98 0.01 160);
+  --secondary: oklch(0.96 0.01 160);
+  --secondary-foreground: oklch(0.25 0.06 160);
+  --muted: oklch(0.96 0.01 160);
+  --muted-foreground: oklch(0.50 0.03 160);
+  --accent: oklch(0.70 0.14 180);
+  --accent-foreground: oklch(0.15 0.02 160);
+  --destructive: oklch(0.58 0.24 27);
+  --border: oklch(0.92 0.01 160);
+  --input: oklch(0.92 0.01 160);
+  --ring: oklch(0.55 0.14 160);
+  --chart-1: oklch(0.65 0.18 160);
+  --chart-2: oklch(0.60 0.14 180);
+  --chart-3: oklch(0.55 0.12 200);
+  --chart-4: oklch(0.70 0.16 130);
+  --chart-5: oklch(0.50 0.16 220);
+  --sidebar: oklch(0.97 0.005 160);
+  --sidebar-foreground: oklch(0.15 0.02 160);
+  --sidebar-primary: oklch(0.45 0.15 160);
+  --sidebar-primary-foreground: oklch(0.98 0.01 160);
+  --sidebar-accent: oklch(0.94 0.01 160);
+  --sidebar-accent-foreground: oklch(0.25 0.06 160);
+  --sidebar-border: oklch(0.92 0.01 160);
+  --sidebar-ring: oklch(0.55 0.14 160);
+}
+
+[data-style="neon-mint"].dark {
+  --background: oklch(0.10 0.01 160);
+  --foreground: oklch(0.96 0.01 160);
+  --card: oklch(0.14 0.015 160);
+  --card-foreground: oklch(0.96 0.01 160);
+  --popover: oklch(0.14 0.015 160);
+  --popover-foreground: oklch(0.96 0.01 160);
+  --primary: oklch(0.85 0.2 160);
+  --primary-foreground: oklch(0.10 0.01 160);
+  --secondary: oklch(0.18 0.02 160);
+  --secondary-foreground: oklch(0.96 0.01 160);
+  --muted: oklch(0.18 0.02 160);
+  --muted-foreground: oklch(0.65 0.04 160);
+  --accent: oklch(0.70 0.22 350);
+  --accent-foreground: oklch(0.96 0.01 160);
+  --destructive: oklch(0.65 0.18 22);
+  --border: oklch(0.85 0.2 160 / 15%);
+  --input: oklch(0.85 0.2 160 / 12%);
+  --ring: oklch(0.85 0.2 160);
+  --chart-1: oklch(0.85 0.2 160);
+  --chart-2: oklch(0.70 0.22 350);
+  --chart-3: oklch(0.75 0.15 200);
+  --chart-4: oklch(0.80 0.18 130);
+  --chart-5: oklch(0.78 0.14 85);
+  --sidebar: oklch(0.12 0.012 160);
+  --sidebar-foreground: oklch(0.96 0.01 160);
+  --sidebar-primary: oklch(0.85 0.2 160);
+  --sidebar-primary-foreground: oklch(0.10 0.01 160);
+  --sidebar-accent: oklch(0.18 0.02 160);
+  --sidebar-accent-foreground: oklch(0.96 0.01 160);
+  --sidebar-border: oklch(0.85 0.2 160 / 15%);
+  --sidebar-ring: oklch(0.85 0.2 160);
+}
+
+/* ============================================================
+   PARCHMENT — Warm Analog
+   Earth tones, warm cream, terracotta, serif fonts
+   ============================================================ */
+[data-style="parchment"] {
+  --radius: 0.5rem;
+  --font-body: "Lora", "Charter", Georgia, serif;
+  --font-heading: "Crimson Text", "Iowan Old Style", Georgia, serif;
+  --background: oklch(0.96 0.015 75);
+  --foreground: oklch(0.22 0.03 55);
+  --card: oklch(0.97 0.02 70);
+  --card-foreground: oklch(0.22 0.03 55);
+  --popover: oklch(0.97 0.02 70);
+  --popover-foreground: oklch(0.22 0.03 55);
+  --primary: oklch(0.35 0.05 55);
+  --primary-foreground: oklch(0.96 0.015 75);
+  --secondary: oklch(0.93 0.02 70);
+  --secondary-foreground: oklch(0.35 0.05 55);
+  --muted: oklch(0.93 0.02 70);
+  --muted-foreground: oklch(0.50 0.03 55);
+  --accent: oklch(0.62 0.14 40);
+  --accent-foreground: oklch(0.98 0.01 70);
+  --destructive: oklch(0.55 0.20 25);
+  --border: oklch(0.88 0.02 70);
+  --input: oklch(0.88 0.02 70);
+  --ring: oklch(0.62 0.10 40);
+  --chart-1: oklch(0.62 0.14 40);
+  --chart-2: oklch(0.60 0.08 150);
+  --chart-3: oklch(0.55 0.08 240);
+  --chart-4: oklch(0.72 0.12 80);
+  --chart-5: oklch(0.50 0.10 320);
+  --sidebar: oklch(0.94 0.018 72);
+  --sidebar-foreground: oklch(0.22 0.03 55);
+  --sidebar-primary: oklch(0.35 0.05 55);
+  --sidebar-primary-foreground: oklch(0.96 0.015 75);
+  --sidebar-accent: oklch(0.91 0.02 70);
+  --sidebar-accent-foreground: oklch(0.35 0.05 55);
+  --sidebar-border: oklch(0.88 0.02 70);
+  --sidebar-ring: oklch(0.62 0.10 40);
+}
+
+[data-style="parchment"].dark {
+  --background: oklch(0.20 0.02 55);
+  --foreground: oklch(0.92 0.015 75);
+  --card: oklch(0.25 0.02 55);
+  --card-foreground: oklch(0.92 0.015 75);
+  --popover: oklch(0.25 0.02 55);
+  --popover-foreground: oklch(0.92 0.015 75);
+  --primary: oklch(0.90 0.02 75);
+  --primary-foreground: oklch(0.20 0.02 55);
+  --secondary: oklch(0.28 0.02 55);
+  --secondary-foreground: oklch(0.92 0.015 75);
+  --muted: oklch(0.28 0.02 55);
+  --muted-foreground: oklch(0.65 0.02 70);
+  --accent: oklch(0.65 0.12 55);
+  --accent-foreground: oklch(0.92 0.015 75);
+  --destructive: oklch(0.65 0.18 22);
+  --border: oklch(1 0.02 55 / 12%);
+  --input: oklch(1 0.02 55 / 14%);
+  --ring: oklch(0.65 0.10 55);
+  --chart-1: oklch(0.65 0.12 55);
+  --chart-2: oklch(0.60 0.10 150);
+  --chart-3: oklch(0.55 0.08 240);
+  --chart-4: oklch(0.72 0.10 80);
+  --chart-5: oklch(0.60 0.10 320);
+  --sidebar: oklch(0.23 0.02 55);
+  --sidebar-foreground: oklch(0.92 0.015 75);
+  --sidebar-primary: oklch(0.65 0.12 55);
+  --sidebar-primary-foreground: oklch(0.20 0.02 55);
+  --sidebar-accent: oklch(0.28 0.02 55);
+  --sidebar-accent-foreground: oklch(0.92 0.015 75);
+  --sidebar-border: oklch(1 0.02 55 / 12%);
+  --sidebar-ring: oklch(0.65 0.10 55);
+}
+
+/* ============================================================
+   GLASS — Translucent Depth
+   Glassmorphism, violet/rose, frosted cards, large radius
+   ============================================================ */
+[data-style="glass"] {
+  --radius: 1rem;
+  --font-body: "Plus Jakarta Sans", system-ui, sans-serif;
+  --font-heading: "Plus Jakarta Sans", system-ui, sans-serif;
+  --background: oklch(0.97 0.01 280);
+  --foreground: oklch(0.18 0.03 280);
+  --card: oklch(1 0 280 / 60%);
+  --card-foreground: oklch(0.18 0.03 280);
+  --popover: oklch(0.99 0.005 280 / 85%);
+  --popover-foreground: oklch(0.18 0.03 280);
+  --primary: oklch(0.50 0.18 280);
+  --primary-foreground: oklch(0.98 0.005 280);
+  --secondary: oklch(0.95 0.01 280 / 70%);
+  --secondary-foreground: oklch(0.30 0.08 280);
+  --muted: oklch(0.95 0.01 280 / 70%);
+  --muted-foreground: oklch(0.48 0.03 280);
+  --accent: oklch(0.72 0.12 350);
+  --accent-foreground: oklch(0.18 0.03 280);
+  --destructive: oklch(0.58 0.24 27);
+  --border: oklch(0.50 0.10 280 / 15%);
+  --input: oklch(0.50 0.10 280 / 12%);
+  --ring: oklch(0.50 0.18 280);
+  --chart-1: oklch(0.55 0.18 280);
+  --chart-2: oklch(0.72 0.12 350);
+  --chart-3: oklch(0.65 0.14 200);
+  --chart-4: oklch(0.75 0.14 85);
+  --chart-5: oklch(0.60 0.16 160);
+  --sidebar: oklch(0.98 0.008 280 / 70%);
+  --sidebar-foreground: oklch(0.18 0.03 280);
+  --sidebar-primary: oklch(0.50 0.18 280);
+  --sidebar-primary-foreground: oklch(0.98 0.005 280);
+  --sidebar-accent: oklch(0.94 0.01 280 / 60%);
+  --sidebar-accent-foreground: oklch(0.30 0.08 280);
+  --sidebar-border: oklch(0.50 0.10 280 / 12%);
+  --sidebar-ring: oklch(0.50 0.18 280);
+}
+
+[data-style="glass"].dark {
+  --background: oklch(0.15 0.04 280);
+  --foreground: oklch(0.94 0.01 280);
+  --card: oklch(0.22 0.04 280 / 40%);
+  --card-foreground: oklch(0.94 0.01 280);
+  --popover: oklch(0.20 0.04 280 / 75%);
+  --popover-foreground: oklch(0.94 0.01 280);
+  --primary: oklch(0.75 0.15 280);
+  --primary-foreground: oklch(0.15 0.04 280);
+  --secondary: oklch(0.22 0.04 280 / 50%);
+  --secondary-foreground: oklch(0.94 0.01 280);
+  --muted: oklch(0.22 0.04 280 / 50%);
+  --muted-foreground: oklch(0.65 0.04 280);
+  --accent: oklch(0.80 0.14 200);
+  --accent-foreground: oklch(0.15 0.04 280);
+  --destructive: oklch(0.65 0.18 22);
+  --border: oklch(1 0 0 / 10%);
+  --input: oklch(1 0 0 / 12%);
+  --ring: oklch(0.75 0.15 280);
+  --chart-1: oklch(0.70 0.18 280);
+  --chart-2: oklch(0.75 0.14 350);
+  --chart-3: oklch(0.80 0.14 200);
+  --chart-4: oklch(0.80 0.14 85);
+  --chart-5: oklch(0.70 0.16 160);
+  --sidebar: oklch(0.18 0.04 280 / 50%);
+  --sidebar-foreground: oklch(0.94 0.01 280);
+  --sidebar-primary: oklch(0.75 0.15 280);
+  --sidebar-primary-foreground: oklch(0.15 0.04 280);
+  --sidebar-accent: oklch(0.22 0.04 280 / 40%);
+  --sidebar-accent-foreground: oklch(0.94 0.01 280);
+  --sidebar-border: oklch(1 0 0 / 8%);
+  --sidebar-ring: oklch(0.75 0.15 280);
+}
+
+/* ============================================================
+   MONO — Terminal / Hacker
+   Monospace, high contrast, minimal decoration, tiny radius
+   ============================================================ */
+[data-style="mono"] {
+  --radius: 0.125rem;
+  --font-body: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  --font-heading: "JetBrains Mono", "Fira Code", "Cascadia Code", monospace;
+  --background: oklch(1 0 0);
+  --foreground: oklch(0.15 0 0);
+  --card: oklch(0.97 0 0);
+  --card-foreground: oklch(0.15 0 0);
+  --popover: oklch(0.97 0 0);
+  --popover-foreground: oklch(0.15 0 0);
+  --primary: oklch(0.15 0 0);
+  --primary-foreground: oklch(1 0 0);
+  --secondary: oklch(0.94 0 0);
+  --secondary-foreground: oklch(0.15 0 0);
+  --muted: oklch(0.94 0 0);
+  --muted-foreground: oklch(0.45 0 0);
+  --accent: oklch(0.55 0.15 250);
+  --accent-foreground: oklch(1 0 0);
+  --destructive: oklch(0.55 0.22 25);
+  --border: oklch(0.80 0 0);
+  --input: oklch(0.80 0 0);
+  --ring: oklch(0.55 0.15 250);
+  --chart-1: oklch(0.15 0 0);
+  --chart-2: oklch(0.45 0 0);
+  --chart-3: oklch(0.65 0 0);
+  --chart-4: oklch(0.55 0.15 250);
+  --chart-5: oklch(0.80 0 0);
+  --sidebar: oklch(0.96 0 0);
+  --sidebar-foreground: oklch(0.15 0 0);
+  --sidebar-primary: oklch(0.15 0 0);
+  --sidebar-primary-foreground: oklch(1 0 0);
+  --sidebar-accent: oklch(0.92 0 0);
+  --sidebar-accent-foreground: oklch(0.15 0 0);
+  --sidebar-border: oklch(0.80 0 0);
+  --sidebar-ring: oklch(0.55 0.15 250);
+}
+
+[data-style="mono"].dark {
+  --background: oklch(0.12 0.01 145);
+  --foreground: oklch(0.80 0.2 145);
+  --card: oklch(0.16 0.01 145);
+  --card-foreground: oklch(0.80 0.2 145);
+  --popover: oklch(0.16 0.01 145);
+  --popover-foreground: oklch(0.80 0.2 145);
+  --primary: oklch(0.80 0.2 145);
+  --primary-foreground: oklch(0.12 0.01 145);
+  --secondary: oklch(0.18 0.012 145);
+  --secondary-foreground: oklch(0.80 0.2 145);
+  --muted: oklch(0.18 0.012 145);
+  --muted-foreground: oklch(0.55 0.06 145);
+  --accent: oklch(0.80 0.16 85);
+  --accent-foreground: oklch(0.12 0.01 145);
+  --destructive: oklch(0.65 0.18 22);
+  --border: oklch(0.80 0.2 145 / 20%);
+  --input: oklch(0.80 0.2 145 / 15%);
+  --ring: oklch(0.80 0.2 145);
+  --chart-1: oklch(0.80 0.2 145);
+  --chart-2: oklch(0.80 0.16 85);
+  --chart-3: oklch(0.75 0.15 200);
+  --chart-4: oklch(0.70 0.18 330);
+  --chart-5: oklch(0.90 0 0);
+  --sidebar: oklch(0.14 0.01 145);
+  --sidebar-foreground: oklch(0.80 0.2 145);
+  --sidebar-primary: oklch(0.80 0.2 145);
+  --sidebar-primary-foreground: oklch(0.12 0.01 145);
+  --sidebar-accent: oklch(0.18 0.012 145);
+  --sidebar-accent-foreground: oklch(0.80 0.2 145);
+  --sidebar-border: oklch(0.80 0.2 145 / 20%);
+  --sidebar-ring: oklch(0.80 0.2 145);
+}
+
+
+/* ============================================================
+   TAILWIND DARK VARIANT
+   ============================================================ */
 @custom-variant dark (&:is(.dark *));
 
 
@@ -86,6 +470,9 @@
   }
 }
 
+/* ============================================================
+   THEME INLINE — maps CSS vars to Tailwind utilities
+   ============================================================ */
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -125,28 +512,170 @@
 }
 
 
+/* ============================================================
+   BASE LAYER — fonts, backgrounds, selection, per-style FX
+   ============================================================ */
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
   html {
-    font-family: "Avenir Next", "Segoe UI", sans-serif;
+    font-family: var(--font-body);
   }
   body {
     @apply bg-background text-foreground;
-    background-image:
-      radial-gradient(circle at top left, color-mix(in oklab, var(--color-chart-2) 16%, transparent) 0%, transparent 34%),
-      radial-gradient(circle at top right, color-mix(in oklab, var(--color-chart-4) 12%, transparent) 0%, transparent 28%),
-      linear-gradient(180deg, color-mix(in oklab, var(--background) 92%, white) 0%, var(--background) 100%);
     background-attachment: fixed;
     min-height: 100vh;
   }
   h1, h2, h3, h4, h5, h6 {
-    font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;
+    font-family: var(--font-heading);
     letter-spacing: -0.02em;
   }
   ::selection {
     background: color-mix(in oklab, var(--color-chart-2) 40%, white);
     color: var(--foreground);
   }
+
+  /* ---- Default background ---- */
+  [data-style="default"] body,
+  :not([data-style]) body {
+    background-image:
+      radial-gradient(circle at top left, color-mix(in oklab, var(--color-chart-2) 16%, transparent) 0%, transparent 34%),
+      radial-gradient(circle at top right, color-mix(in oklab, var(--color-chart-4) 12%, transparent) 0%, transparent 28%),
+      linear-gradient(180deg, color-mix(in oklab, var(--background) 92%, white) 0%, var(--background) 100%);
+  }
+
+  /* ---- Ledger background: subtle pinstripe ---- */
+  [data-style="ledger"] body {
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 39px,
+        oklch(0.85 0.01 80 / 25%) 39px,
+        oklch(0.85 0.01 80 / 25%) 40px
+      ),
+      linear-gradient(180deg, var(--background) 0%, color-mix(in oklab, var(--background) 96%, oklch(0.75 0.12 85)) 100%);
+  }
+  [data-style="ledger"].dark body {
+    background-image:
+      repeating-linear-gradient(
+        90deg,
+        transparent,
+        transparent 39px,
+        oklch(0.30 0.02 260 / 15%) 39px,
+        oklch(0.30 0.02 260 / 15%) 40px
+      ),
+      linear-gradient(180deg, var(--background) 0%, color-mix(in oklab, var(--background) 96%, oklch(0.30 0.06 260)) 100%);
+  }
+
+  /* ---- Neon Mint background: clean gradient ---- */
+  [data-style="neon-mint"] body {
+    background-image:
+      linear-gradient(180deg, var(--background) 0%, color-mix(in oklab, var(--background) 95%, oklch(0.65 0.18 160)) 100%);
+  }
+  [data-style="neon-mint"].dark body {
+    background-image:
+      radial-gradient(ellipse at 50% 0%, oklch(0.85 0.2 160 / 8%) 0%, transparent 60%),
+      linear-gradient(180deg, var(--background) 0%, oklch(0.08 0.01 160) 100%);
+  }
+
+  /* ---- Parchment background: warm radial glow ---- */
+  [data-style="parchment"] body {
+    background-image:
+      radial-gradient(ellipse at 50% 50%, color-mix(in oklab, oklch(0.80 0.08 60) 10%, transparent) 0%, transparent 70%),
+      linear-gradient(180deg, var(--background) 0%, color-mix(in oklab, var(--background) 94%, oklch(0.70 0.10 50)) 100%);
+  }
+  [data-style="parchment"].dark body {
+    background-image:
+      radial-gradient(ellipse at 50% 100%, oklch(0.30 0.04 55 / 20%) 0%, transparent 60%),
+      linear-gradient(180deg, var(--background) 0%, oklch(0.16 0.02 55) 100%);
+  }
+
+  /* ---- Glass background: vivid gradient blobs ---- */
+  [data-style="glass"] body {
+    background-image:
+      radial-gradient(ellipse at 20% 10%, oklch(0.65 0.18 280 / 18%) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, oklch(0.72 0.12 350 / 14%) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, oklch(0.65 0.14 200 / 10%) 0%, transparent 60%),
+      linear-gradient(180deg, var(--background) 0%, oklch(0.94 0.015 280) 100%);
+  }
+  [data-style="glass"].dark body {
+    background-image:
+      radial-gradient(ellipse at 20% 10%, oklch(0.50 0.20 280 / 20%) 0%, transparent 50%),
+      radial-gradient(ellipse at 80% 80%, oklch(0.55 0.16 350 / 15%) 0%, transparent 50%),
+      radial-gradient(ellipse at 50% 50%, oklch(0.55 0.14 200 / 12%) 0%, transparent 60%),
+      linear-gradient(180deg, var(--background) 0%, oklch(0.10 0.04 280) 100%);
+  }
+
+  /* ---- Mono background: solid / optional scanlines ---- */
+  [data-style="mono"] body {
+    background-image: none;
+    background-color: var(--background);
+  }
+  [data-style="mono"].dark body {
+    background-image:
+      repeating-linear-gradient(
+        0deg,
+        transparent,
+        transparent 3px,
+        oklch(0.80 0.2 145 / 2%) 3px,
+        oklch(0.80 0.2 145 / 2%) 4px
+      );
+  }
+}
+
+
+/* ============================================================
+   GLASS-SPECIFIC — backdrop blur on key components
+   ============================================================ */
+[data-style="glass"] [data-slot="card"] {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+[data-style="glass"] [data-radix-popper-content-wrapper] [role="dialog"],
+[data-style="glass"] [data-radix-popper-content-wrapper] [role="listbox"],
+[data-style="glass"] [data-radix-popper-content-wrapper] [role="menu"] {
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+}
+
+/* ============================================================
+   MONO-SPECIFIC — increased line-height for monospace readability
+   ============================================================ */
+[data-style="mono"] body {
+  line-height: 1.7;
+  font-size: 0.9rem;
+}
+
+[data-style="mono"] h1,
+[data-style="mono"] h2,
+[data-style="mono"] h3,
+[data-style="mono"] h4,
+[data-style="mono"] h5,
+[data-style="mono"] h6 {
+  letter-spacing: -0.04em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+/* ============================================================
+   LEDGER-SPECIFIC — underline headings for formality
+   ============================================================ */
+[data-style="ledger"] h1,
+[data-style="ledger"] h2 {
+  font-weight: 700;
+}
+
+/* ============================================================
+   PARCHMENT dark selection override
+   ============================================================ */
+[data-style="parchment"] ::selection {
+  background: color-mix(in oklab, oklch(0.62 0.14 40) 35%, white);
+}
+
+[data-style="parchment"].dark ::selection {
+  background: color-mix(in oklab, oklch(0.65 0.12 55) 40%, oklch(0.20 0.02 55));
+  color: oklch(0.92 0.015 75);
 }

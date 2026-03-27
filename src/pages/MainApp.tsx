@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
 import { ForecastCalendar, type WarningStyle } from '@/components/ForecastCalendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
+import { StyleToggle } from '@/components/ui/style-toggle';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -512,6 +513,7 @@ export function MainApp({
             ) : (
               <Button variant="outline" onClick={login}>Connect Google</Button>
             )}
+            <StyleToggle />
             <ModeToggle />
               </div>
             </div>
