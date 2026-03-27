@@ -262,6 +262,13 @@ export function MainApp({
     trackEvent('upload_completed', { transactions: transactions.length, rules: nextRules.length });
   };
 
+  const resetImportDraft = () => {
+    setPreview(null);
+    setMapping(null);
+    setImportIssues([]);
+    setSuccessMessage('Cleared the current import draft.');
+  };
+
   const generateLocalForecast = () => {
     const parsedBalance = Number.parseFloat(currentBalance);
     if (!Number.isFinite(parsedBalance)) {
@@ -469,6 +476,7 @@ export function MainApp({
   const totalEnabledRecurring = recurringRules
     .filter((rule) => rule.enabled)
     .reduce((sum, rule) => sum + (rule.direction === 'credit' ? rule.amount : -rule.amount), 0);
+  const oneOffNetTotal = oneOffTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
 
   return (
     <div className="min-h-screen">
@@ -582,31 +590,94 @@ export function MainApp({
               <CardDescription>Upload CSV or XLSX, review the detected column mapping, and promote good history into a usable forecast model.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
-              <div className="rounded-[1.5rem] border border-dashed p-4">
-                <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-muted/40 px-4 py-12 text-center transition-colors hover:bg-muted/60">
-                  <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
-                  <div>
-                    <p className="font-medium">Drop in CSV or Excel</p>
-                    <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never hit a FinCal backend.</p>
+              <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+                <div className="space-y-4 rounded-[1.5rem] border border-dashed p-4">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-muted/40 px-4 py-12 text-center transition-colors hover:bg-muted/60">
+                    <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
+                    <div>
+                      <p className="font-medium">Drop in CSV or Excel</p>
+                      <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never hit a FinCal backend.</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".csv,.xlsx,.xls"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          void importFromFile(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <div className="space-y-3 rounded-[1.25rem] bg-muted/35 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Import progress</span>
+                      <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                        {preview ? 'Draft ready' : 'Waiting for file'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Upload a transaction export', done: Boolean(preview) },
+                        { label: 'Confirm the column mapping', done: Boolean(preview && mapping?.dateColumn && mapping?.descriptionColumn && (mapping?.amountColumn || mapping?.creditColumn || mapping?.debitColumn)) },
+                        { label: 'Import and detect recurring rules', done: importedTransactions.length > 0 },
+                      ].map((item, index) => (
+                        <div key={item.label} className="flex items-center gap-3 rounded-xl bg-background/80 px-3 py-2 text-sm shadow-sm">
+                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                            item.done ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {item.done ? '✓' : index + 1}
+                          </span>
+                          <span className={item.done ? 'text-foreground' : 'text-muted-foreground'}>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {preview && (
+                      <Button variant="outline" className="w-full rounded-full" onClick={resetImportDraft}>
+                        Clear Import Draft
+                      </Button>
+                    )}
                   </div>
-                  <input
-                    type="file"
-                    accept=".csv,.xlsx,.xls"
-                    className="hidden"
-                    onChange={(event) => {
-                      const file = event.target.files?.[0];
-                      if (file) {
-                        void importFromFile(file);
-                      }
-                    }}
-                  />
-                </label>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Rows loaded</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.rows.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Headers found</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.headers.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Import source</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.source?.toUpperCase() ?? 'FILE'}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-muted/35 p-4 text-sm text-muted-foreground">
+                    Best results come from exports with a clear `date`, `description`, and either one signed `amount` column or separate `credit` / `debit` columns.
+                  </div>
+                </div>
               </div>
 
               {preview && mapping && (
                 <div className="space-y-4">
-                  <div className="rounded-2xl bg-muted/40 p-4 text-sm text-muted-foreground">
-                    FinCal guessed the mapping below. Check `date`, `description`, and either one signed `amount` column or separate `credit` / `debit` columns before you import.
+                  <div className="flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Mapping draft</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        FinCal guessed the mapping below. Check the core fields before promoting this history into recurring rules.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${mapping.dateColumn ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Date</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${mapping.descriptionColumn ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Description</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${(mapping.amountColumn || mapping.creditColumn || mapping.debitColumn) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Amounts</span>
+                    </div>
                   </div>
                   <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {[
@@ -636,11 +707,14 @@ export function MainApp({
                     ))}
                   </div>
 
-                  <div className="flex flex-wrap gap-3">
+                  <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/70 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-medium">Ready to create recurring candidates?</p>
+                      <p className="text-sm text-muted-foreground">
+                        FinCal will normalize {preview.rows.length} rows, flag invalid lines, and surface likely repeating transactions.
+                      </p>
+                    </div>
                     <Button onClick={completeImport} className="rounded-full px-6">Import And Detect Recurring Rules</Button>
-                    <span className="text-sm text-muted-foreground self-center">
-                      Previewing {preview.rows.length} rows from your uploaded file.
-                    </span>
                   </div>
 
                   <div className="overflow-hidden rounded-2xl border">
@@ -682,7 +756,7 @@ export function MainApp({
           </Card>
 
           <div className="space-y-6">
-            <Card className="border-0 shadow-lg">
+            <Card className="overflow-hidden border-0 shadow-lg">
               <CardHeader>
                 <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
                   <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">2</span>
@@ -692,15 +766,31 @@ export function MainApp({
                 <CardDescription>Set your balance, horizon, and warning rules. Session data stays in local storage.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
-                <InputGroup>
-                  <InputGroupText>Current Balance</InputGroupText>
-                  <InputGroupInput type="number" value={currentBalance} onChange={(event) => setCurrentBalance(event.target.value)} />
-                </InputGroup>
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast starts</p>
+                    <p className="mt-2 text-lg font-semibold">{forecastStartDate}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast ends</p>
+                    <p className="mt-2 text-lg font-semibold">{forecastEndDate}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Balance baseline</p>
+                  <div className="mt-3">
+                    <InputGroup>
+                      <InputGroupText>Current Balance</InputGroupText>
+                      <InputGroupInput type="number" value={currentBalance} onChange={(event) => setCurrentBalance(event.target.value)} />
+                    </InputGroup>
+                  </div>
+                </div>
 
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Forecast horizon</span>
-                    <select value={timespan} onChange={(event) => setTimespan(event.target.value)} className="w-full rounded-md border bg-background px-3 py-2">
+                  <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                    <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast horizon</span>
+                    <select value={timespan} onChange={(event) => setTimespan(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2">
                       <option value="30D">30 days</option>
                       <option value="60D">60 days</option>
                       <option value="90D">90 days</option>
@@ -708,68 +798,94 @@ export function MainApp({
                       <option value="1Y">1 year</option>
                     </select>
                   </label>
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Week starts on</span>
-                    <select value={weekStartDay} onChange={(event) => setWeekStartDay(Number(event.target.value) as 0 | 1)} className="w-full rounded-md border bg-background px-3 py-2">
+                  <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                    <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Week starts on</span>
+                    <select value={weekStartDay} onChange={(event) => setWeekStartDay(Number(event.target.value) as 0 | 1)} className="w-full rounded-xl border bg-background px-3 py-2">
                       <option value={0}>Sunday</option>
                       <option value={1}>Monday</option>
                     </select>
                   </label>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Warning amount</span>
-                    <input className="w-full rounded-md border bg-background px-3 py-2" type="number" value={warningAmount} onChange={(event) => setWarningAmount(Number.parseFloat(event.target.value) || 0)} />
-                  </label>
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Warning color</span>
-                    <input className="h-10 w-full rounded-md border bg-background px-2 py-1" type="color" value={warningColor} onChange={(event) => setWarningColor(event.target.value)} />
-                  </label>
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Warning behavior</p>
+                    <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: warningColor }} />
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning amount</span>
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="number" value={warningAmount} onChange={(event) => setWarningAmount(Number.parseFloat(event.target.value) || 0)} />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning color</span>
+                      <input className="h-10 w-full rounded-xl border bg-background px-2 py-1" type="color" value={warningColor} onChange={(event) => setWarningColor(event.target.value)} />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning condition</span>
+                      <select value={warningOperator} onChange={(event) => setWarningOperator(event.target.value as '<' | '<=')} className="w-full rounded-xl border bg-background px-3 py-2">
+                        <option value="<">Balance below threshold</option>
+                        <option value="<=">Balance at or below threshold</option>
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Highlight style</span>
+                      <select value={warningStyle} onChange={(event) => setWarningStyle(event.target.value as WarningStyle)} className="w-full rounded-xl border bg-background px-3 py-2">
+                        <option value="Row Background">Row Background</option>
+                        <option value="Text Color">Text Color</option>
+                        <option value="Balance Color">Balance Color</option>
+                      </select>
+                    </label>
+                  </div>
                 </div>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Warning condition</span>
-                    <select value={warningOperator} onChange={(event) => setWarningOperator(event.target.value as '<' | '<=')} className="w-full rounded-md border bg-background px-3 py-2">
-                      <option value="<">Balance below threshold</option>
-                      <option value="<=">Balance at or below threshold</option>
-                    </select>
-                  </label>
-                  <label className="space-y-2 text-sm">
-                    <span className="font-medium">Highlight style</span>
-                    <select value={warningStyle} onChange={(event) => setWarningStyle(event.target.value as WarningStyle)} className="w-full rounded-md border bg-background px-3 py-2">
-                      <option value="Row Background">Row Background</option>
-                      <option value="Text Color">Text Color</option>
-                      <option value="Balance Color">Balance Color</option>
-                    </select>
-                  </label>
-                </div>
-
-                <Button className="w-full rounded-full" onClick={generateLocalForecast} disabled={isLoading}>
+                <Button className="w-full rounded-full py-6 text-base" onClick={generateLocalForecast} disabled={isLoading}>
                   {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
                   Generate Forecast
                 </Button>
               </CardContent>
             </Card>
 
-            <Card className="border-0 shadow-lg">
+            <Card className="overflow-hidden border-0 shadow-lg">
               <CardHeader>
-                <CardTitle>Manual Adjustments</CardTitle>
-                <CardDescription>Add one-off future cash events that should affect the forecast.</CardDescription>
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <CardTitle>Manual Adjustments</CardTitle>
+                    <CardDescription>Add one-off future cash events that should affect the forecast.</CardDescription>
+                  </div>
+                  <div className="rounded-full bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    {oneOffTransactions.length} item{oneOffTransactions.length === 1 ? '' : 's'}
+                  </div>
+                </div>
               </CardHeader>
               <CardContent className="space-y-3">
-                <input className="w-full rounded-md border bg-background px-3 py-2" value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} placeholder="Description" />
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <input className="w-full rounded-md border bg-background px-3 py-2" type="number" step="0.01" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="Positive income or negative expense" />
-                  <input className="w-full rounded-md border bg-background px-3 py-2" type="date" value={manualDate} onChange={(event) => setManualDate(event.target.value)} />
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Net adjustments</p>
+                    <p className="mt-2 text-xl font-semibold">{formatCurrency(oneOffNetTotal)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Latest planned date</p>
+                    <p className="mt-2 text-xl font-semibold">{oneOffTransactions.at(-1)?.date ?? 'None yet'}</p>
+                  </div>
                 </div>
-                <Button variant="outline" className="w-full rounded-full" onClick={addManualAdjustment}>Add Planned Adjustment</Button>
+
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Create a one-off adjustment</p>
+                  <div className="mt-4 space-y-3">
+                    <input className="w-full rounded-xl border bg-background px-3 py-2" value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} placeholder="Description" />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="number" step="0.01" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="Positive income or negative expense" />
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="date" value={manualDate} onChange={(event) => setManualDate(event.target.value)} />
+                    </div>
+                    <Button variant="outline" className="w-full rounded-full" onClick={addManualAdjustment}>Add Planned Adjustment</Button>
+                  </div>
+                </div>
 
                 {oneOffTransactions.length > 0 && (
                   <div className="space-y-2 rounded-2xl border p-3">
                     {oneOffTransactions.slice(-5).reverse().map((transaction) => (
-                      <div key={transaction.id} className="flex items-center justify-between gap-3 text-sm">
+                      <div key={transaction.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/20 px-3 py-2 text-sm">
                         <div>
                           <p className="font-medium">{transaction.description}</p>
                           <p className="text-muted-foreground">{transaction.date}</p>
@@ -788,6 +904,61 @@ export function MainApp({
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Optional Google Integration</CardTitle>
+                <CardDescription>Use Google Calendar as a legacy source or export your confirmed recurring rules back out.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {accessToken ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Connected account</p>
+                        <p className="mt-2 truncate text-sm font-semibold">{userProfile?.email ?? 'Google connected'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Export readiness</p>
+                        <p className="mt-2 text-sm font-semibold">{selectedCreditCalendarId && selectedDebitCalendarId ? 'Calendars selected' : 'Choose calendars below'}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                        <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Income calendar</span>
+                        <select className="w-full rounded-xl border bg-background px-3 py-2" value={selectedCreditCalendarId ?? ''} onChange={(event) => setSelectedCreditCalendarId(event.target.value || undefined)}>
+                          <option value="">Select calendar</option>
+                          {calendars.map((calendar) => (
+                            <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                        <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Expense calendar</span>
+                        <select className="w-full rounded-xl border bg-background px-3 py-2" value={selectedDebitCalendarId ?? ''} onChange={(event) => setSelectedDebitCalendarId(event.target.value || undefined)}>
+                          <option value="">Select calendar</option>
+                          {calendars.map((calendar) => (
+                            <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Button variant="outline" className="rounded-full" onClick={importFromGoogleCalendars}>Load History From Google</Button>
+                      <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
+                        Export Enabled Rules To Google
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed p-4 text-sm text-muted-foreground">
+                    Connect Google only if you want to import from existing calendars or export confirmed recurring rules.
+                    <Button className="mt-3 w-full rounded-full" variant="outline" onClick={login}>Connect Google</Button>
                   </div>
                 )}
               </CardContent>
@@ -925,49 +1096,6 @@ export function MainApp({
             </CardContent>
           </Card>
 
-          <Card className="border-0 shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl">Optional Google Integration</CardTitle>
-              <CardDescription>Use Google Calendar as a legacy source or export your confirmed recurring rules back out.</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {accessToken ? (
-                <>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <label className="space-y-2 text-sm">
-                      <span className="font-medium">Income calendar</span>
-                      <select className="w-full rounded-md border bg-background px-3 py-2" value={selectedCreditCalendarId ?? ''} onChange={(event) => setSelectedCreditCalendarId(event.target.value || undefined)}>
-                        <option value="">Select calendar</option>
-                        {calendars.map((calendar) => (
-                          <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
-                        ))}
-                      </select>
-                    </label>
-                    <label className="space-y-2 text-sm">
-                      <span className="font-medium">Expense calendar</span>
-                      <select className="w-full rounded-md border bg-background px-3 py-2" value={selectedDebitCalendarId ?? ''} onChange={(event) => setSelectedDebitCalendarId(event.target.value || undefined)}>
-                        <option value="">Select calendar</option>
-                        {calendars.map((calendar) => (
-                          <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
-                        ))}
-                      </select>
-                    </label>
-                  </div>
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <Button variant="outline" className="rounded-full" onClick={importFromGoogleCalendars}>Load History From Google</Button>
-                    <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
-                      Export Enabled Rules To Google
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="rounded-[1.25rem] border border-dashed p-4 text-sm text-muted-foreground">
-                  Connect Google only if you want to import from existing calendars or export confirmed recurring rules.
-                  <Button className="mt-3 w-full rounded-full" variant="outline" onClick={login}>Connect Google</Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
             </div>
 
             <div className="rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-sm md:p-5">
