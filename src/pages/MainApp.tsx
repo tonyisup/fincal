@@ -488,7 +488,7 @@ export function MainApp({
                 <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">FinCal</p>
                 <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-5xl">Forecast your next cash crunch before it happens</h1>
                 <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
-                  Import CSV or Excel, let FinCal surface recurring paychecks and bills, then turn that history into a forward-looking balance view.
+                  Import CSV or Excel, review the paychecks and bills that repeat, and turn that history into a forward-looking balance view.
                 </p>
               </div>
               <div className="flex items-center gap-3">
@@ -528,17 +528,17 @@ export function MainApp({
                   <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
                     <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 1</p>
                     <h2 className="mt-2 text-xl font-semibold">Import history</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Upload a transaction export and map the columns once.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Upload a transaction export and match the important columns.</p>
                   </div>
                   <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
                     <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 2</p>
                     <h2 className="mt-2 text-xl font-semibold">Tune recurring rules</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Keep the likely paychecks and bills. Disable the noisy ones.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Keep the likely paychecks and bills. Turn off the noisy ones.</p>
                   </div>
                   <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
                     <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 3</p>
                     <h2 className="mt-2 text-xl font-semibold">See the forecast</h2>
-                    <p className="mt-2 text-sm text-muted-foreground">Look for low points, negative days, and timing gaps.</p>
+                    <p className="mt-2 text-sm text-muted-foreground">Look for low points, negative days, and tight timing windows.</p>
                   </div>
                 </div>
               </div>
@@ -587,7 +587,7 @@ export function MainApp({
                 <Upload className="h-5 w-5" />
                 Import Transactions
               </CardTitle>
-              <CardDescription>Upload CSV or XLSX, review the detected column mapping, and promote good history into a usable forecast model.</CardDescription>
+              <CardDescription>Upload CSV or XLSX, review the detected columns, and turn raw history into forecast-ready recurring items.</CardDescription>
             </CardHeader>
             <CardContent className="space-y-5">
               <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
@@ -596,7 +596,7 @@ export function MainApp({
                     <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
                     <div>
                       <p className="font-medium">Drop in CSV or Excel</p>
-                      <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never hit a FinCal backend.</p>
+                      <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never leave your browser.</p>
                     </div>
                     <input
                       type="file"
@@ -621,7 +621,7 @@ export function MainApp({
                     <div className="space-y-2">
                       {[
                         { label: 'Upload a transaction export', done: Boolean(preview) },
-                        { label: 'Confirm the column mapping', done: Boolean(preview && mapping?.dateColumn && mapping?.descriptionColumn && (mapping?.amountColumn || mapping?.creditColumn || mapping?.debitColumn)) },
+                        { label: 'Confirm the important columns', done: Boolean(preview && mapping?.dateColumn && mapping?.descriptionColumn && (mapping?.amountColumn || mapping?.creditColumn || mapping?.debitColumn)) },
                         { label: 'Import and detect recurring rules', done: importedTransactions.length > 0 },
                       ].map((item, index) => (
                         <div key={item.label} className="flex items-center gap-3 rounded-xl bg-background/80 px-3 py-2 text-sm shadow-sm">
@@ -659,7 +659,7 @@ export function MainApp({
                   </div>
 
                   <div className="rounded-2xl bg-muted/35 p-4 text-sm text-muted-foreground">
-                    Best results come from exports with a clear `date`, `description`, and either one signed `amount` column or separate `credit` / `debit` columns.
+                    Best results come from exports with a clear `date`, `description`, and either one signed `amount` column or separate `credit` and `debit` columns.
                   </div>
                 </div>
               </div>
@@ -668,9 +668,9 @@ export function MainApp({
                 <div className="space-y-4">
                   <div className="flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Mapping draft</p>
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Column check</p>
                       <p className="mt-1 text-sm text-muted-foreground">
-                        FinCal guessed the mapping below. Check the core fields before promoting this history into recurring rules.
+                        FinCal guessed the columns below. Check the core fields before turning this history into recurring rules.
                       </p>
                     </div>
                     <div className="flex flex-wrap gap-2">
@@ -709,9 +709,9 @@ export function MainApp({
 
                   <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/70 p-4 md:flex-row md:items-center md:justify-between">
                     <div>
-                      <p className="font-medium">Ready to create recurring candidates?</p>
+                      <p className="font-medium">Ready to find recurring items?</p>
                       <p className="text-sm text-muted-foreground">
-                        FinCal will normalize {preview.rows.length} rows, flag invalid lines, and surface likely repeating transactions.
+                        FinCal will clean up {preview.rows.length} rows, flag invalid lines, and surface likely repeating transactions.
                       </p>
                     </div>
                     <Button onClick={completeImport} className="rounded-full px-6">Import And Detect Recurring Rules</Button>
@@ -763,7 +763,7 @@ export function MainApp({
                   Tune
                 </div>
                 <CardTitle className="text-2xl">Forecast Controls</CardTitle>
-                <CardDescription>Set your balance, horizon, and warning rules. Session data stays in local storage.</CardDescription>
+                <CardDescription>Set your starting point, forecast range, and alert behavior. Session data stays in local storage.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="grid gap-3 sm:grid-cols-2">
@@ -851,7 +851,7 @@ export function MainApp({
                 <div className="mb-3 flex items-center justify-between">
                   <div>
                     <CardTitle>Manual Adjustments</CardTitle>
-                    <CardDescription>Add one-off future cash events that should affect the forecast.</CardDescription>
+                    <CardDescription>Add one-time future cash events that should affect the forecast.</CardDescription>
                   </div>
                   <div className="rounded-full bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
                     {oneOffTransactions.length} item{oneOffTransactions.length === 1 ? '' : 's'}
@@ -912,7 +912,7 @@ export function MainApp({
             <Card className="overflow-hidden border-0 shadow-lg">
               <CardHeader>
                 <CardTitle>Optional Google Integration</CardTitle>
-                <CardDescription>Use Google Calendar as a legacy source or export your confirmed recurring rules back out.</CardDescription>
+                <CardDescription>Pull from your existing Google calendars or send confirmed recurring rules back out.</CardDescription>
               </CardHeader>
               <CardContent className="space-y-4">
                 {accessToken ? (

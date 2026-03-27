@@ -31,10 +31,10 @@ export function LandingPage({ signIn }: LandingPageProps) {
                 Upload Transactions. Forecast Cash Flow.
               </h1>
               <p className="mx-auto max-w-[700px] text-gray-200 md:text-xl">
-                FinCal turns transaction exports into a forward-looking balance forecast. Start with CSV or Excel, confirm recurring income and bills, and optionally sync the result to Google Calendar.
+                FinCal turns transaction exports into a forward-looking balance forecast. Start with CSV or Excel, confirm the paychecks and bills that repeat, and optionally send them to Google Calendar.
               </p>
               <div className="rounded-full border border-white/25 bg-white/10 px-4 py-2 text-sm text-white/90">
-                For people who care more about the next 90 days than last month's category breakdown.
+                Built for people who care more about the next 90 days than last month’s spending categories.
               </div>
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button asChild size="lg">
@@ -53,9 +53,9 @@ export function LandingPage({ signIn }: LandingPageProps) {
           <div className="w-full max-w-6xl mx-auto px-4 md:px-6">
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
-              <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">Everything You Need to Know, In One Place</h2>
+              <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">A simpler way to plan the next few pay cycles</h2>
               <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text/base/relaxed xl:text-xl/relaxed">
-                Connect your calendars, set your balance, and let FinCal do the rest.
+                Import your history, confirm what repeats, and see where your balance is headed.
               </p>
             </div>
             <div className="mx-auto grid max-w-5xl items-center gap-6 py-12 lg:grid-cols-3 lg:gap-12">
@@ -64,21 +64,21 @@ export function LandingPage({ signIn }: LandingPageProps) {
                   <CalendarCheck2 className="h-6 w-6 text-primary" />
                   <h3 className="text-xl font-bold">Optional Google Calendar Sync</h3>
                 </div>
-                <p className="text-muted-foreground">Keep calendar export as a bonus workflow, not a requirement. Forecast inside FinCal first, then push recurring items to Google if you want reminders.</p>
+                <p className="text-muted-foreground">Google is there if you want reminders or a familiar planning surface, but it is not required to use the app.</p>
               </div>
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-6 w-6 text-primary" />
                   <h3 className="text-xl font-bold">Forward-Looking Cash Flow</h3>
                 </div>
-                <p className="text-muted-foreground">See when your balance may dip before payday and spot the lowest point in your next 30, 60, or 90 days.</p>
+                <p className="text-muted-foreground">See when your balance may dip before payday and find the lowest point in the next 30, 60, or 90 days.</p>
               </div>
               <div className="grid gap-1">
                 <div className="flex items-center gap-2">
                   <Wallet className="h-6 w-6 text-primary" />
                   <h3 className="text-xl font-bold">Import CSV Or Excel</h3>
                 </div>
-                <p className="text-muted-foreground">Upload transaction exports, map columns once, and let FinCal detect recurring income and expenses for you.</p>
+                <p className="text-muted-foreground">Upload transaction exports, map the columns, and let FinCal find likely recurring income and expenses.</p>
               </div>
             </div>
           </div>
@@ -90,7 +90,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
             <div className="space-y-3">
               <h2 className="text-3xl font-bold tracking-tighter md:text-4xl/tight">How It Works</h2>
               <p className="mx-auto max-w-[600px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
-                Getting started with FinCal is as easy as 1-2-3.
+                The core workflow is fast once your file is in.
               </p>
             </div>
             <div className="mx-auto w-full max-w-4xl grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
@@ -102,7 +102,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
               <div className="flex flex-col gap-2 items-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">2</div>
                 <h3 className="font-bold text-lg">Confirm Recurring Rules</h3>
-                <p className="text-sm text-muted-foreground">Review FinCal's recurring pay and bill detection, then adjust anything noisy.</p>
+                <p className="text-sm text-muted-foreground">Review what FinCal thinks repeats, then fix or ignore anything noisy.</p>
               </div>
               <div className="flex flex-col gap-2 items-center">
                 <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary text-primary-foreground font-bold text-xl">3</div>
