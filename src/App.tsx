@@ -77,36 +77,43 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         if (storedToken && storedProfile) {
           const profile: UserProfile = JSON.parse(storedProfile);
 
-          // Verify token is still valid by fetching user profile
+          // Verify token is still valid by checking tokeninfo
           try {
-            const response = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
-              headers: {
-                Authorization: `Bearer ${storedToken}`,
-              },
-            });
+            const response = await fetch(`https://www.googleapis.com/oauth2/v1/tokeninfo?access_token=${storedToken}`);
 
             if (response.ok) {
               // Token is valid, restore session
               setAccessToken(storedToken);
               setUserProfile(profile);
               setIsSignedIn(true);
-              // Check scopes
-              checkScopes(storedToken);
-            } else {
+              
+              // Check scopes from the tokeninfo response
+              const data = await response.json();
+              if (data.scope) {
+                const scopes = data.scope.split(' ');
+                const hasCalendar = scopes.includes('https://www.googleapis.com/auth/calendar');
+                const hasEvents = scopes.includes('https://www.googleapis.com/auth/calendar.events');
+                setHasWriteAccess(hasCalendar || hasEvents);
+              }
+            } else if (response.status === 400 || response.status === 401) {
               // Token expired or invalid, clear storage
               localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
               localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
             }
           } catch (err) {
-            // Token validation failed, clear storage
-            console.error("Token validation failed:", err);
-            localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-            localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
+            // Network error (offline or blocked). Do not clear storage.
+            // Restore session so the app can function with cached data or retry later.
+            console.error("Token validation network error:", err);
+            setAccessToken(storedToken);
+            setUserProfile(profile);
+            setIsSignedIn(true);
+            // We can't verify scopes offline, so hasWriteAccess stays default (false)
+            // or we could assume they have what they had. For safety we leave it false.
           }
         }
       } catch (err) {
         console.error("Error restoring session:", err);
-        // Clear potentially corrupted data
+        // Clear potentially corrupted data (e.g., malformed JSON in profile)
         localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
         localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
       } finally {
@@ -115,7 +122,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     restoreSession();
-  }, [checkScopes]);
+  }, []);
 
   const fetchUserProfile = useCallback(async (token: string) => {
     try {
