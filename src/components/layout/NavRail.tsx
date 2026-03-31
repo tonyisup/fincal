@@ -1,10 +1,21 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, SlidersHorizontal, Upload, Settings } from 'lucide-react';
-import { useAuth } from '@/App'; // Ensure this exists or pass it from App
+import { useAuth } from '@/App';
+import { useTheme } from '@/providers/theme-provider';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 export function NavRail() {
   const location = useLocation();
   const { userProfile, handleLogout } = useAuth();
+  const { theme, setTheme } = useTheme();
 
   const navItems = [
     { icon: Home, path: '/app/forecast', label: 'Forecast' },
@@ -47,12 +58,26 @@ export function NavRail() {
 
       <div className="flex flex-col items-center gap-3">
         {/* Bottom actions */}
-        <button
-          title="Settings"
-          className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
-        >
-          <Settings className="h-5 w-5" />
-        </button>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <button
+              title="Settings"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+            >
+              <Settings className="h-5 w-5" />
+            </button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" side="right" sideOffset={12}>
+            <DropdownMenuLabel>Appearance</DropdownMenuLabel>
+            <DropdownMenuSeparator />
+            <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as any)}>
+              <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
+              <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
+            </DropdownMenuRadioGroup>
+          </DropdownMenuContent>
+        </DropdownMenu>
+
         {userProfile && (
           <button
             onClick={handleLogout}
