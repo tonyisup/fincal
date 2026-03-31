@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useForecastContext } from '@/providers/ForecastProvider';
 
 import { Button } from '@/components/ui/button';
@@ -27,21 +28,28 @@ export function ForecastControlsSidebar() {
     successMessage
   } = useForecastContext();
 
+  const [controlsExpanded, setControlsExpanded] = useState(true);
+  const [warningBehavriorExpanded, setWarningBehavriorExpanded] = useState(true);
+  const [adjustmentsExpanded, setAdjustmentsExpanded] = useState(true);
+
   const oneOffNetTotal = oneOffTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
   return (
     <div className="flex h-full w-[340px] flex-col overflow-y-auto border-r border-border/40 bg-card/60 px-4 py-5 shadow-sm scrollbar-hide">
-      
+
       {/* Forecast Controls Collapse Panel Header */}
-      <div className="mb-4 flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+      <div
+        className="flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        onClick={() => setControlsExpanded(!controlsExpanded)}
+      >
         <span>Forecast Controls</span>
-        <ChevronDown className="h-4 w-4" />
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${controlsExpanded ? 'rotate-0' : '-rotate-90'}`} />
       </div>
 
-      <div className="space-y-5">
-        
+      <div className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${controlsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+
         {/* Dates */}
-        <div className="space-y-3">
+        <div className="pt-4 space-y-3">
           <label className="space-y-1.5 text-sm font-medium">
             <span className="text-muted-foreground text-xs">Forecast Starts</span>
             <div className="flex items-center rounded-lg border bg-background/50 px-3 py-2.5">
@@ -49,7 +57,7 @@ export function ForecastControlsSidebar() {
               <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
             </div>
           </label>
-          
+
           <label className="space-y-1.5 text-sm font-medium">
             <span className="text-muted-foreground text-xs">Forecast Ends</span>
             <div className="flex items-center rounded-lg border bg-background/50 px-3 py-2.5">
@@ -93,7 +101,7 @@ export function ForecastControlsSidebar() {
               <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
             </div>
           </label>
-          
+
           <label className="space-y-1.5 text-sm font-medium flex flex-col">
             <span className="text-muted-foreground text-xs">Week Starts On</span>
             <div className="relative">
@@ -109,64 +117,79 @@ export function ForecastControlsSidebar() {
             </div>
           </label>
         </div>
+      </div>
 
-        <hr className="border-border/40" />
+      <hr className="my-4 border-border/40" />
 
+      {/* Warnings Behavior Controls Collapse Panel Header */}
+      <div
+        className="flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        onClick={() => setWarningBehavriorExpanded(!warningBehavriorExpanded)}
+      >
+        <span>Warnings Behavior</span>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${warningBehavriorExpanded ? 'rotate-0' : '-rotate-90'}`} />
+      </div>
+
+      <div className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${warningBehavriorExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
         {/* Warning Behavior */}
-        <div className="space-y-4">
-          <div className="text-xs font-semibold text-muted-foreground uppercase tracking-widest">Warning Behavior</div>
+        <div className="pt-4 space-y-4">
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
-             <span className="text-muted-foreground text-xs">Warning amount</span>
-             <input
-                type="number"
-                className="w-24 rounded-lg border bg-background/50 px-2 py-1 text-right outline-none"
-                value={warningAmount}
-                onChange={(e) => setWarningAmount(Number(e.target.value))}
-             />
+            <span className="text-muted-foreground text-xs">Warning amount</span>
+            <input
+              type="number"
+              className="w-24 rounded-lg border bg-background/50 px-2 py-1 text-right outline-none"
+              value={warningAmount}
+              onChange={(e) => setWarningAmount(Number(e.target.value))}
+            />
           </label>
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
-             <span className="text-muted-foreground text-xs">Warning color</span>
-             <input
-                type="color"
-                className="w-24 h-8 cursor-pointer rounded border bg-transparent p-0 outline-none"
-                value={warningColor}
-                onChange={(e) => setWarningColor(e.target.value)}
-             />
+            <span className="text-muted-foreground text-xs">Warning color</span>
+            <input
+              type="color"
+              className="w-24 h-8 cursor-pointer rounded border bg-transparent p-0 outline-none"
+              value={warningColor}
+              onChange={(e) => setWarningColor(e.target.value)}
+            />
           </label>
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
-             <span className="text-muted-foreground text-xs">Warning condition</span>
-             <select
-                className="w-[120px] rounded border bg-background/50 px-2 py-1 outline-none text-xs"
-                value={warningOperator}
-                onChange={(e) => setWarningOperator(e.target.value as '<' | '<=')}
-             >
-                <option value="<">Balance below thr...</option>
-                <option value="<=">Balance at/below thr...</option>
-             </select>
+            <span className="text-muted-foreground text-xs">Warning condition</span>
+            <select
+              className="w-[120px] rounded border bg-background/50 px-2 py-1 outline-none text-xs"
+              value={warningOperator}
+              onChange={(e) => setWarningOperator(e.target.value as '<' | '<=')}
+            >
+              <option value="<">Balance below thr...</option>
+              <option value="<=">Balance at/below thr...</option>
+            </select>
           </label>
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
-             <span className="text-muted-foreground text-xs">Highlight style</span>
-             <select
-                className="w-[120px] rounded border bg-background/50 px-2 py-1 outline-none text-xs"
-                value={warningStyle}
-                onChange={(e) => setWarningStyle(e.target.value as any)}
-             >
-                <option value="Text Color">Text Color</option>
-                <option value="Row Background">Row Background</option>
-                <option value="Balance Color">Balance Color</option>
-             </select>
+            <span className="text-muted-foreground text-xs">Highlight style</span>
+            <select
+              className="w-[120px] rounded border bg-background/50 px-2 py-1 outline-none text-xs"
+              value={warningStyle}
+              onChange={(e) => setWarningStyle(e.target.value as any)}
+            >
+              <option value="Text Color">Text Color</option>
+              <option value="Row Background">Row Background</option>
+              <option value="Balance Color">Balance Color</option>
+            </select>
           </label>
         </div>
 
       </div>
 
-      <div className="mt-8 border-t border-border/40 pt-6">
-        <div className="mb-4 flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground">
+      <hr className="my-4 border-border/40" />
+
+      <div>
+        <div
+          className="mb-4 flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+          onClick={() => setAdjustmentsExpanded(!adjustmentsExpanded)}
+        >
           <span>Manual Adjustments</span>
-          <ChevronDown className="h-4 w-4" />
+          <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${adjustmentsExpanded ? 'rotate-0' : '-rotate-90'}`} />
         </div>
-        
-        <div className="space-y-4">
+
+        <div className={`space-y-4 transition-all duration-300 ease-in-out overflow-hidden ${adjustmentsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Adjustments</span>
             <span className={oneOffNetTotal < 0 ? 'text-red-500 font-medium' : oneOffNetTotal > 0 ? 'text-emerald-500 font-medium' : 'text-foreground font-medium'}>
@@ -195,15 +218,15 @@ export function ForecastControlsSidebar() {
               />
             </label>
             <label className="block text-sm">
-               <span className="text-xs text-muted-foreground mb-1 block">Amount</span>
-               <input
-                 type="number"
-                 placeholder="e.g. 500"
-                 className="w-full rounded-lg border bg-background/50 px-3 py-2 outline-none"
-                 value={manualAmount}
-                 onChange={(e) => setManualAmount(e.target.value)}
-               />
-             </label>
+              <span className="text-xs text-muted-foreground mb-1 block">Amount</span>
+              <input
+                type="number"
+                placeholder="e.g. 500"
+                className="w-full rounded-lg border bg-background/50 px-3 py-2 outline-none"
+                value={manualAmount}
+                onChange={(e) => setManualAmount(e.target.value)}
+              />
+            </label>
             <label className="block text-sm">
               <span className="text-xs text-muted-foreground mb-1 block">Date</span>
               <div className="flex w-full items-center rounded-lg border bg-background/50 px-3 py-2">

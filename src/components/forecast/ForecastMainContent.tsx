@@ -2,7 +2,8 @@ import { useMemo, useEffect } from 'react';
 import { useForecastContext } from '@/providers/ForecastProvider';
 import { ForecastTable } from '@/components/ForecastTable';
 import { ForecastCalendar } from '@/components/ForecastCalendar';
-import { Search } from 'lucide-react';
+import { Search, ArrowUpRight } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function ForecastMainContent() {
   const {
@@ -50,7 +51,16 @@ export function ForecastMainContent() {
           <div className="flex gap-12">
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Enabled Rules</p>
-              <p className="text-2xl font-semibold text-emerald-400 mt-1">{enabledRulesCount} / {recurringRules.length}</p>
+              <div className="flex items-center gap-3 mt-1">
+                <p className="text-2xl font-semibold text-emerald-400">{enabledRulesCount} / {recurringRules.length}</p>
+                <Link 
+                  to="/app/tune" 
+                  className="group flex h-7 w-7 items-center justify-center rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 transition-all hover:bg-emerald-500 hover:text-emerald-950"
+                  title="Tune Rules"
+                >
+                  <ArrowUpRight className="h-4 w-4 transition-transform group-hover:scale-110" />
+                </Link>
+              </div>
             </div>
             <div>
               <p className="text-xs uppercase tracking-widest text-muted-foreground">Net Recurring Flow</p>
