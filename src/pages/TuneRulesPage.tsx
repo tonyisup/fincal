@@ -75,18 +75,20 @@ export function TuneRulesPage() {
             <p className="text-sm text-muted-foreground mt-1">Review what FinCal thinks repeats. Disable noisy rules and adjust cadence or amount.</p>
           </div>
           <div className="flex gap-3 text-sm">
-            <button
-              className="rounded-lg bg-emerald-500/20 px-4 py-2 font-semibold text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500/30"
+            <Button
+              variant="outline"
+              className="rounded-lg bg-emerald-500/20 px-4 py-2 font-semibold border-emerald-500/30 text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500/30 hover:text-emerald-700 dark:hover:text-emerald-300"
               onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: true })))}
             >
               Enable all
-            </button>
-            <button
-              className="rounded-lg border border-border/50 bg-background/50 px-4 py-2 font-medium transition-colors hover:bg-muted"
+            </Button>
+            <Button
+              variant="outline"
+              className="rounded-lg border-border/50 bg-background/50 px-4 py-2 font-medium transition-colors hover:bg-muted text-foreground"
               onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: false })))}
             >
               Disable all
-            </button>
+            </Button>
           </div>
         </div>
 
@@ -106,18 +108,19 @@ export function TuneRulesPage() {
               </div>
               <div className="flex gap-2 items-center">
                 {isFiltered && (
-                  <button
+                  <Button
+                    variant="ghost"
                     onClick={resetFilters}
                     className="flex h-8 items-center gap-1.5 rounded-full bg-muted/50 px-3 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground transition-all hover:bg-muted hover:text-foreground"
                   >
                     <X className="h-3 w-3" /> Clear Filters
-                  </button>
+                  </Button>
                 )}
                 <Popover>
                   <PopoverTrigger asChild>
-                    <button className={`flex h-8 w-8 items-center justify-center rounded border transition-colors ${isFiltered ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600' : 'border-border/50 bg-background/50 hover:bg-muted text-muted-foreground'}`}>
+                    <Button variant="outline" size="icon" className={`h-8 w-8 rounded transition-colors ${isFiltered ? 'bg-emerald-500/10 border-emerald-500/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-500' : 'border-border/50 bg-background/50 hover:bg-muted text-muted-foreground'}`}>
                       <SlidersHorizontal className="h-4 w-4" />
-                    </button>
+                    </Button>
                   </PopoverTrigger>
                   <PopoverContent align="end" className="w-80 space-y-4">
                     <div className="space-y-2">
@@ -274,7 +277,7 @@ export function TuneRulesPage() {
               <div className="rounded-xl border border-dashed border-emerald-500/20 bg-emerald-500/5 p-4 text-center">
                 <p className="text-[10px] text-emerald-600 dark:text-emerald-400 font-medium uppercase tracking-widest">Active Filters Applied</p>
                 <p className="text-xs text-muted-foreground mt-2">Showing a subset of your recurring rules.</p>
-                <button onClick={resetFilters} className="text-xs font-semibold text-emerald-600 hover:underline mt-2">Reset all</button>
+                <Button variant="link" onClick={resetFilters} className="text-xs font-semibold text-emerald-600 hover:text-emerald-500 mt-2 p-0 h-auto">Reset all</Button>
               </div>
             )}
           </div>

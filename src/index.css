@@ -73,18 +73,7 @@
 @custom-variant dark (&:is(.dark *));
 
 
-@media (prefers-color-scheme: light) {
-  :root {
-    color: #213547;
-    background-color: #ffffff;
-  }
-  a:hover {
-    color: #747bff;
-  }
-  button {
-    background-color: #f9f9f9;
-  }
-}
+
 
 @theme inline {
   --radius-sm: calc(var(--radius) - 4px);
