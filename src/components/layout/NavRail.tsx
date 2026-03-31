@@ -62,7 +62,7 @@ export function NavRail() {
           <DropdownMenuTrigger asChild>
             <button
               title="Settings"
-              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground"
+              className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground bg-transparent border-none appearance-none"
             >
               <Settings className="h-5 w-5" />
             </button>

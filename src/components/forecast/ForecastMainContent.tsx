@@ -62,13 +62,13 @@ export function ForecastMainContent() {
           <div className="flex gap-3">
             <button
                onClick={handleEnableAll}
-               className="rounded-lg bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-400 transition-colors hover:bg-emerald-500/30"
+               className="rounded-lg bg-emerald-500/10 dark:bg-emerald-500/20 px-4 py-2 text-sm font-semibold text-emerald-600 dark:text-emerald-400 transition-colors hover:bg-emerald-500/20 dark:hover:bg-emerald-500/30"
             >
               Enable all
             </button>
             <button
                onClick={handleDisableAll}
-               className="rounded-lg border border-border/50 bg-background/50 px-4 py-2 text-sm font-medium transition-colors hover:bg-muted"
+               className="rounded-lg border border-border/50 bg-background/50 dark:bg-muted/30 px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-muted"
             >
               Disable all
             </button>
@@ -91,18 +91,18 @@ export function ForecastMainContent() {
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
             </div>
-            <div className="flex items-center rounded-lg border border-border/50 bg-background/50 p-1">
+            <div className="flex items-center rounded-lg border border-border/40 bg-muted/30 p-1">
               <button
-                className={`flex items-center gap-2 rounded px-3 py-1 text-sm font-medium transition-colors ${
-                  viewMode === 'table' ? 'bg-muted text-foreground' : 'text-muted-foreground'
+                className={`flex items-center gap-2 rounded px-3 py-1 text-sm font-medium transition-all ${
+                  viewMode === 'table' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setViewMode('table')}
               >
                 Table
               </button>
               <button
-                className={`flex items-center gap-2 rounded px-3 py-1 text-sm font-medium transition-colors ${
-                  viewMode === 'calendar' ? 'bg-muted text-foreground' : 'text-muted-foreground'
+                className={`flex items-center gap-2 rounded px-3 py-1 text-sm font-medium transition-all ${
+                  viewMode === 'calendar' ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'
                 }`}
                 onClick={() => setViewMode('calendar')}
               >
