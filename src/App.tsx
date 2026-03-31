@@ -27,9 +27,10 @@ interface AuthContextType {
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
-const MainApp = lazy(() => import('./pages/MainApp').then((module) => ({ default: module.MainApp })));
-const ImportTransactions = lazy(() => import('./pages/ImportTransactions').then((module) => ({ default: module.ImportTransactions })));
-
+const AppLayout = lazy(() => import('./components/layout/AppLayout').then((module) => ({ default: module.AppLayout })));
+const ForecastPage = lazy(() => import('./pages/ForecastPage').then((module) => ({ default: module.ForecastPage })));
+const TuneRulesPage = lazy(() => import('./pages/TuneRulesPage').then((module) => ({ default: module.TuneRulesPage })));
+const ImportPage = lazy(() => import('./pages/ImportPage').then((module) => ({ default: module.ImportPage })));
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (!context) {
@@ -222,7 +223,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
 // Routes Component
 function AppRoutes() {
-  const { isSignedIn, isRestoringSession, userProfile, accessToken, handleLogout, login, hasWriteAccess, grantWriteAccess } = useAuth();
+  const { isSignedIn, isRestoringSession, login } = useAuth();
 
   // Show loading while restoring session
   if (isRestoringSession) {
@@ -247,30 +248,18 @@ function AppRoutes() {
         <Route
           path="/"
           element={
-            isSignedIn ? <Navigate to="/app" replace /> : <LandingPage signIn={login} />
+            isSignedIn ? <Navigate to="/app/forecast" replace /> : <LandingPage signIn={login} />
           }
         />
         <Route path="/privacy" element={<PrivacyPolicy />} />
         <Route path="/terms" element={<TermsOfService />} />
-        <Route
-          path="/app"
-          element={
-            <MainApp
-              userProfile={userProfile}
-              accessToken={accessToken}
-              handleLogout={handleLogout}
-              hasWriteAccess={hasWriteAccess}
-              grantWriteAccess={grantWriteAccess}
-              login={login}
-            />
-          }
-        />
-        <Route
-          path="/import"
-          element={
-            isSignedIn ? <ImportTransactions /> : <Navigate to="/" replace />
-          }
-        />
+        
+        <Route path="/app" element={<AppLayout />}>
+          <Route path="" element={<Navigate to="forecast" replace />} />
+          <Route path="forecast" element={<ForecastPage />} />
+          <Route path="tune" element={<TuneRulesPage />} />
+          <Route path="import" element={<ImportPage />} />
+        </Route>
       </Routes>
     </Suspense>
   );
