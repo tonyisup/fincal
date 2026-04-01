@@ -37,6 +37,7 @@ import type {
 import { trackEvent } from '@/lib/analytics';
 import { defaultForecastEndDate, daysUntilNegative, detectRecurringRules, forecastPointsToEntries, generateForecast, googleEventsToTransactions, lowestBalance, ruleToGoogleEvent } from '@/lib/forecast';
 import { detectImportMapping, normalizeImportedTransactions, parseImportFile } from '@/lib/import';
+import { fetchCalendarEvents } from '@/lib/googleBatch';
 
 const STORAGE_KEY = 'fincal_session_v2';
 
@@ -357,25 +358,7 @@ export function MainApp({
 
   const fetchEvents = useCallback(async (calendarId: string): Promise<CalendarEvent[]> => {
     if (!accessToken) return [];
-    const params = new URLSearchParams({
-      timeMin: new Date('2025-01-01').toISOString(),
-      timeMax: new Date().toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '250',
-    });
-
-    const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    if (!response.ok) {
-      throw new Error('Failed to load Google Calendar events.');
-    }
-    const data = await response.json();
-    return data.items ?? [];
+    return fetchCalendarEvents(calendarId, accessToken);
   }, [accessToken]);
 
   const importFromGoogleCalendars = async () => {
@@ -430,27 +413,47 @@ export function MainApp({
     setError(null);
     try {
       const enabledRules = recurringRules.filter((rule) => rule.enabled);
+      const succeededIds: string[] = [];
+      const failedDetails: Array<{ id: string; label: string; error: string }> = [];
+
       for (const rule of enabledRules) {
         const calendarId = rule.direction === 'credit' ? selectedCreditCalendarId : selectedDebitCalendarId;
-        const response = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify(ruleToGoogleEvent(rule)),
-          },
-        );
+        const eventBody = ruleToGoogleEvent(rule);
 
-        if (!response.ok) {
-          throw new Error(`Failed to export ${rule.label}.`);
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(eventBody),
+            },
+          );
+
+          if (response.ok) {
+            succeededIds.push(rule.id);
+          } else {
+            const errorText = await response.text();
+            failedDetails.push({ id: rule.id, label: rule.label, error: errorText || 'Unknown error' });
+            console.error(`Failed to export rule ${rule.label}:`, errorText);
+          }
+        } catch (ruleError) {
+          const errorMessage = ruleError instanceof Error ? ruleError.message : 'Unknown error';
+          failedDetails.push({ id: rule.id, label: rule.label, error: errorMessage });
+          console.error(`Failed to export rule ${rule.label}:`, ruleError);
         }
       }
 
-      setSuccessMessage(`Exported ${recurringRules.filter((rule) => rule.enabled).length} recurring rules to Google Calendar.`);
-      trackEvent('google_export_completed', { rules: recurringRules.filter((rule) => rule.enabled).length });
+      setSuccessMessage(`Exported ${succeededIds.length} recurring rules to Google Calendar.`);
+      trackEvent('google_export_completed', { successes: succeededIds.length, failures: failedDetails.length });
+
+      if (failedDetails.length > 0) {
+        const failedSummary = failedDetails.map(f => f.label).join(', ');
+        setError(`${failedDetails.length} rule(s) failed to export: ${failedSummary}`);
+      }
     } catch (exportError) {
       console.error(exportError);
       setError(exportError instanceof Error ? exportError.message : 'Google export failed.');

@@ -68,38 +68,79 @@ function parseAmountValue(value: string | undefined) {
   return Number.isFinite(amount) ? amount : null;
 }
 
-export async function parseImportFile(file: File): Promise<ImportPreview> {
-  const ExcelJS = await import('exceljs');
-  const workbook = new ExcelJS.Workbook();
+async function parseCSV(file: File): Promise<(string | number | null)[][]> {
+  const text = await file.text();
+  const lines = text.split(/\r?\n/);
+  const matrix: (string | number | null)[][] = [];
 
-  // Use xlsx.load for all file types (it handles both CSV and XLSX)
-  const buffer = await file.arrayBuffer();
-  await workbook.xlsx.load(buffer);
+  for (const line of lines) {
+    if (!line.trim()) continue;
 
-  const worksheet = workbook.worksheets[0];
-  if (!worksheet) {
-    throw new Error('No worksheet found in the file.');
+    const row: (string | number | null)[] = [];
+    let current = '';
+    let inQuotes = false;
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+
+      if (char === '"') {
+        if (inQuotes && line[i + 1] === '"') {
+          current += '"';
+          i++;
+        } else {
+          inQuotes = !inQuotes;
+        }
+      } else if (char === ',' && !inQuotes) {
+        row.push(current.trim());
+        current = '';
+      } else {
+        current += char;
+      }
+    }
+
+    row.push(current.trim());
+    matrix.push(row);
   }
 
-  const matrix: (string | number | null)[][] = [];
-  worksheet.eachRow((row) => {
-    const rowData: (string | number | null)[] = [];
-    row.eachCell({ includeEmpty: true }, (cell) => {
-      const value = cell.value;
-      if (value === null || value === undefined) {
-        rowData.push('');
-      } else if (value instanceof Date) {
-        rowData.push(value.toISOString());
-      } else if (typeof value === 'object' && 'text' in value) {
-        rowData.push(String(value.text));
-      } else if (typeof value === 'object' && 'result' in value) {
-        rowData.push(String(value.result));
-      } else {
-        rowData.push(value as string | number);
-      }
+  return matrix;
+}
+
+export async function parseImportFile(file: File): Promise<ImportPreview> {
+  const isCSV = file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv');
+  let matrix: (string | number | null)[][] = [];
+
+  if (isCSV) {
+    matrix = await parseCSV(file);
+  } else {
+    const ExcelJS = await import('exceljs');
+    const workbook = new ExcelJS.Workbook();
+    const buffer = await file.arrayBuffer();
+    await workbook.xlsx.load(buffer);
+
+    const worksheet = workbook.worksheets[0];
+    if (!worksheet) {
+      throw new Error('No worksheet found in the file.');
+    }
+
+    worksheet.eachRow((row) => {
+      const rowData: (string | number | null)[] = [];
+      row.eachCell({ includeEmpty: true }, (cell) => {
+        const value = cell.value;
+        if (value === null || value === undefined) {
+          rowData.push('');
+        } else if (value instanceof Date) {
+          rowData.push(value.toISOString());
+        } else if (typeof value === 'object' && 'text' in value) {
+          rowData.push(String(value.text));
+        } else if (typeof value === 'object' && 'result' in value) {
+          rowData.push(String(value.result));
+        } else {
+          rowData.push(value as string | number);
+        }
+      });
+      matrix.push(rowData);
     });
-    matrix.push(rowData);
-  });
+  }
 
   if (matrix.length < 2) {
     throw new Error('The file needs a header row and at least one transaction row.');
@@ -120,7 +161,7 @@ export async function parseImportFile(file: File): Promise<ImportPreview> {
   return {
     headers,
     rows,
-    source: file.name.toLowerCase().endsWith('.csv') ? 'csv' : 'xlsx',
+    source: isCSV ? 'csv' : 'xlsx',
   };
 }
 

@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { detectImportMapping, normalizeImportedTransactions, parseImportFile } from '@/lib/import';
 import { detectRecurringRules, googleEventsToTransactions, ruleToGoogleEvent } from '@/lib/forecast';
 import { trackEvent } from '@/lib/analytics';
+import { fetchCalendarEvents } from '@/lib/googleBatch';
 import { useCallback, useEffect, useState } from 'react';
 import type { ImportColumnMapping } from '@/types/forecast';
 import type { Calendar, CalendarEvent } from '@/types/calendar';
@@ -104,44 +105,7 @@ export function ImportPage() {
     options?: { timeMin?: string; timeMax?: string }
   ): Promise<CalendarEvent[]> => {
     if (!accessToken) return [];
-
-    const now = new Date();
-    const oneYearAgo = new Date(now);
-    oneYearAgo.setFullYear(now.getFullYear() - 1);
-
-    const timeMin = options?.timeMin || oneYearAgo.toISOString();
-    const timeMax = options?.timeMax || now.toISOString();
-
-    const allEvents: CalendarEvent[] = [];
-    let pageToken: string | undefined = undefined;
-
-    do {
-      const params = new URLSearchParams({
-        timeMin,
-        timeMax,
-        singleEvents: 'true',
-        orderBy: 'startTime',
-      });
-
-      if (pageToken) {
-        params.set('pageToken', pageToken);
-      }
-
-      const response = await fetch(
-        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
-        {
-          headers: { Authorization: `Bearer ${accessToken}` },
-        },
-      );
-      if (!response.ok) {
-        throw new Error('Failed to load Google Calendar events.');
-      }
-      const data = await response.json();
-      allEvents.push(...(data.items ?? []));
-      pageToken = data.nextPageToken;
-    } while (pageToken);
-
-    return allEvents;
+    return fetchCalendarEvents(calendarId, accessToken, options);
   }, [accessToken]);
 
   const importFromGoogleCalendars = async () => {

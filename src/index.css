@@ -128,8 +128,13 @@
       radial-gradient(circle at top left, color-mix(in oklab, var(--color-chart-2) 16%, transparent) 0%, transparent 34%),
       radial-gradient(circle at top right, color-mix(in oklab, var(--color-chart-4) 12%, transparent) 0%, transparent 28%),
       linear-gradient(180deg, color-mix(in oklab, var(--background) 92%, white) 0%, var(--background) 100%);
-    background-attachment: fixed;
+    background-attachment: scroll;
     min-height: 100vh;
+  }
+  @media (min-width: 768px) and (pointer: fine) {
+    body {
+      background-attachment: fixed;
+    }
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", Georgia, serif;

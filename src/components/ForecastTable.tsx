@@ -154,6 +154,7 @@ export function ForecastTable({
                                 variant="ghost"
                                 size="icon"
                                 title="Add Income"
+                                aria-label="Add income"
                                 style={{ color: colors.green }}
                               >
                                 <Plus />
@@ -163,6 +164,7 @@ export function ForecastTable({
                                   onClick={() => onOpenExternalDate(entry.when)}
                                   variant="ghost"
                                   size="icon"
+                                  aria-label="Open external date"
                                 >
                                   <ExternalLink />
                                 </Button>
@@ -175,6 +177,7 @@ export function ForecastTable({
                                 variant="ghost"
                                 size="icon"
                                 title="Add Expense"
+                                aria-label="Add expense"
                                 style={{ color: colors.red }}
                               >
                                 <Minus />

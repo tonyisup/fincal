@@ -230,12 +230,12 @@ export function ForecastProvider({ children }: { children: React.ReactNode }) {
     [timespan],
   );
 
-  const updateRule = (ruleId: string, patch: Partial<RecurringRule>) => {
+  const updateRule = useCallback((ruleId: string, patch: Partial<RecurringRule>) => {
     trackEvent('recurring_rule_confirmed', { ruleId, patchKeys: Object.keys(patch) });
     setRecurringRules((current) =>
       current.map((rule) => (rule.id === ruleId ? { ...rule, ...patch } : rule)),
     );
-  };
+  }, []);
 
   const generateLocalForecast = useCallback(() => {
     const parsedBalance = Number.parseFloat(currentBalance);
