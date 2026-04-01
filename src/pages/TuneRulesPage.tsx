@@ -41,8 +41,10 @@ export function TuneRulesPage() {
       const matchesDirection = filterDirection === 'all' || rule.direction === filterDirection;
 
       // Amount check
-      const min = minAmount ? parseFloat(minAmount) : 0;
-      const max = maxAmount ? parseFloat(maxAmount) : Infinity;
+      const parsedMin = minAmount ? parseFloat(minAmount) : 0;
+      const parsedMax = maxAmount ? parseFloat(maxAmount) : Infinity;
+      const min = Number.isFinite(parsedMin) ? parsedMin : 0;
+      const max = Number.isFinite(parsedMax) ? parsedMax : Infinity;
       const matchesAmount = rule.amount >= min && rule.amount <= max;
 
       // Cadence check
@@ -219,7 +221,19 @@ export function TuneRulesPage() {
                     filteredRules.map(rule => (
                       <tr key={rule.id} className={`transition-colors hover:bg-muted/10 ${!rule.enabled ? 'opacity-50' : ''}`}>
                         <td className="px-4 py-3 text-center">
-                          <label className={`inline-flex items-center justify-center cursor-pointer w-10 h-5 rounded-full transition-colors ${rule.enabled ? 'bg-emerald-500/10 border-emerald-500/20 border' : 'bg-muted/50 border border-border'}`}>
+                          <label
+                            className={`inline-flex items-center justify-center cursor-pointer w-10 h-5 rounded-full transition-colors ${rule.enabled ? 'bg-emerald-500/10 border-emerald-500/20 border' : 'bg-muted/50 border border-border'}`}
+                            role="switch"
+                            aria-checked={rule.enabled}
+                            aria-label={`Toggle ${rule.label}`}
+                            tabIndex={0}
+                            onKeyDown={(e) => {
+                              if (e.key === ' ' || e.key === 'Enter') {
+                                e.preventDefault();
+                                updateRule(rule.id, { enabled: !rule.enabled });
+                              }
+                            }}
+                          >
                             <input type="checkbox" className="sr-only" checked={rule.enabled} onChange={(e) => updateRule(rule.id, { enabled: e.target.checked })} />
                             <span className={`block w-3 shadow-sm h-3 rounded-full transition-transform ${rule.enabled ? 'bg-emerald-500 translate-x-1.5' : 'bg-muted-foreground -translate-x-1.5'}`} />
                           </label>

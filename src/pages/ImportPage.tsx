@@ -196,8 +196,13 @@ export function ImportPage() {
     setError(null);
     try {
       const enabledRules = recurringRules.filter((rule) => rule.enabled);
+      const exportedRules: string[] = [];
+      const failedRules: Array<{ id: string; label: string; error: string }> = [];
+
       for (const rule of enabledRules) {
         const calendarId = rule.direction === 'credit' ? selectedCreditCalendarId : selectedDebitCalendarId;
+        const eventBody = ruleToGoogleEvent(rule);
+
         const response = await fetch(
           `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
           {
@@ -206,17 +211,25 @@ export function ImportPage() {
               Authorization: `Bearer ${accessToken}`,
               'Content-Type': 'application/json',
             },
-            body: JSON.stringify(ruleToGoogleEvent(rule)),
+            body: JSON.stringify(eventBody),
           },
         );
 
-        if (!response.ok) {
-          throw new Error(`Failed to export ${rule.label}.`);
+        if (response.ok) {
+          exportedRules.push(rule.id);
+        } else {
+          const errorText = await response.text();
+          failedRules.push({ id: rule.id, label: rule.label, error: errorText || 'Unknown error' });
         }
       }
 
-      setSuccessMessage(`Exported ${recurringRules.filter((rule) => rule.enabled).length} recurring rules to Google Calendar.`);
-      trackEvent('google_export_completed', { rules: recurringRules.filter((rule) => rule.enabled).length });
+      if (failedRules.length > 0) {
+        const failedSummary = failedRules.map(f => `${f.label}: ${f.error}`).join('; ');
+        throw new Error(`Exported ${exportedRules.length} rules but ${failedRules.length} failed: ${failedSummary}`);
+      }
+
+      setSuccessMessage(`Exported ${exportedRules.length} recurring rules to Google Calendar.`);
+      trackEvent('google_export_completed', { rules: exportedRules.length });
     } catch (exportError) {
       console.error(exportError);
       setError(exportError instanceof Error ? exportError.message : 'Google export failed.');
@@ -414,8 +427,6 @@ export function ImportPage() {
                     <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground block mb-2">Income calendar</span>
                     <select className="w-full rounded-xl border border-border/50 bg-background/50 px-3 py-2 outline-none focus:border-emerald-500/50" value={selectedCreditCalendarId ?? ''} onChange={(event) => setSelectedCreditCalendarId(event.target.value || undefined)}>
                       <option value="">Select calendar</option>
-                      {/* Note: In a real flow, Calendars might need a fetch here or we depend on earlier token check. Since we didn't fetch them in ForecastProvider automatically (it was in MainApp earlier), we should ensure calendars are fetched either there or here. 
-                          For now we map if they exist. */}
                       {calendars.map((calendar) => (
                         <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
                       ))}

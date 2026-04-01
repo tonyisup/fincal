@@ -100,12 +100,18 @@ describe('generateForecast', () => {
 
     // Should generate occurrences for Feb and March
     expect(points.length).toBeGreaterThan(0);
+
     // Verify amounts are preserved
     points.forEach(point => {
       point.transactions.forEach(tx => {
         expect(Math.abs(tx.amount)).toBe(1200);
       });
     });
+
+    // Assert exact occurrence dates: Feb 28 and March 31
+    const dates = points.map(p => p.date);
+    expect(dates).toContain('2026-02-28');
+    expect(dates).toContain('2026-03-31');
   });
 });
 

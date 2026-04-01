@@ -989,7 +989,7 @@ export function MainApp({
                       </label>
                     </div>
                     <div className="grid gap-3 sm:grid-cols-2">
-                      <Button variant="outline" className="rounded-full" onClick={importFromGoogleCalendars}>Load History From Google</Button>
+                      <Button variant="outline" className="rounded-full" onClick={() => void importFromGoogleCalendars()}>Load History From Google</Button>
                       <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
                         Export Enabled Rules To Google
                       </Button>

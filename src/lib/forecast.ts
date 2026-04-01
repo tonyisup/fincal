@@ -105,15 +105,18 @@ export function detectRecurringRules(transactions: NormalizedTransaction[]): Rec
       const signedAverage =
         sorted.reduce((sum, item) => sum + item.amount, 0) / Math.max(sorted.length, 1);
       const label = sorted[0].description || key;
-      const anchorDate = sorted[sorted.length - 1].date;
+
+      // Set anchorDate to the next future occurrence after the last historical transaction
+      const lastHistoricalDate = parseISO(sorted[sorted.length - 1].date);
+      const futureAnchorDate = format(nextOccurrence(lastHistoricalDate, cadence), 'yyyy-MM-dd');
 
       const nextRule: RecurringRule = {
-        id: `rule-${key}-${anchorDate}`,
+        id: `rule-${key}-${futureAnchorDate}`,
         label,
         amount: Number(Math.abs(signedAverage).toFixed(2)),
         direction: signedAverage >= 0 ? 'credit' : 'debit',
         cadence,
-        anchorDate,
+        anchorDate: futureAnchorDate,
         confidence,
         sourceTransactionIds: sorted.map((item) => item.id),
         enabled: true,

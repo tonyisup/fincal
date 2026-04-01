@@ -153,6 +153,7 @@ export function ForecastMainContent() {
               startDate={sortedForecast.length > 0 ? sortedForecast[0].when : new Date()}
               endDate={sortedForecast.length > 0 ? sortedForecast[sortedForecast.length - 1].when : new Date()}
               onAddTransaction={() => undefined}
+              enableQuickActions={false}
             />
           )}
         </div>

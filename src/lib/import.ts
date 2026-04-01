@@ -70,8 +70,10 @@ function parseAmountValue(value: string | undefined) {
 
 export async function parseImportFile(file: File): Promise<ImportPreview> {
   const ExcelJS = await import('exceljs');
-  const buffer = await file.arrayBuffer();
   const workbook = new ExcelJS.Workbook();
+
+  // Use xlsx.load for all file types (it handles both CSV and XLSX)
+  const buffer = await file.arrayBuffer();
   await workbook.xlsx.load(buffer);
 
   const worksheet = workbook.worksheets[0];
@@ -86,6 +88,8 @@ export async function parseImportFile(file: File): Promise<ImportPreview> {
       const value = cell.value;
       if (value === null || value === undefined) {
         rowData.push('');
+      } else if (value instanceof Date) {
+        rowData.push(value.toISOString());
       } else if (typeof value === 'object' && 'text' in value) {
         rowData.push(String(value.text));
       } else if (typeof value === 'object' && 'result' in value) {

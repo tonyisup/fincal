@@ -11,6 +11,7 @@ import type { UserProfile } from './types/calendar';
 const STORAGE_KEYS = {
   ACCESS_TOKEN: 'fincal_access_token',
   USER_PROFILE: 'fincal_user_profile',
+  WRITE_ACCESS: 'fincal_write_access',
 };
 
 // Auth context
@@ -60,7 +61,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
         const scopes = data.scope.split(' ');
         const hasCalendar = scopes.includes('https://www.googleapis.com/auth/calendar');
         const hasEvents = scopes.includes('https://www.googleapis.com/auth/calendar.events');
-        setHasWriteAccess(hasCalendar || hasEvents);
+        const writeAccess = hasCalendar || hasEvents;
+        setHasWriteAccess(writeAccess);
+        localStorage.setItem(STORAGE_KEYS.WRITE_ACCESS, String(writeAccess));
       }
     } catch (err) {
       console.error("Error checking scopes:", err);
@@ -93,7 +96,9 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
                 const scopes = data.scope.split(' ');
                 const hasCalendar = scopes.includes('https://www.googleapis.com/auth/calendar');
                 const hasEvents = scopes.includes('https://www.googleapis.com/auth/calendar.events');
-                setHasWriteAccess(hasCalendar || hasEvents);
+                const writeAccess = hasCalendar || hasEvents;
+                setHasWriteAccess(writeAccess);
+                localStorage.setItem(STORAGE_KEYS.WRITE_ACCESS, String(writeAccess));
               }
             } else if (response.status === 400 || response.status === 401) {
               // Token expired or invalid, clear storage
@@ -107,8 +112,11 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
             setAccessToken(storedToken);
             setUserProfile(profile);
             setIsSignedIn(true);
-            // We can't verify scopes offline, so hasWriteAccess stays default (false)
-            // or we could assume they have what they had. For safety we leave it false.
+            // Restore the write-scope flag from localStorage
+            const storedWriteAccess = localStorage.getItem(STORAGE_KEYS.WRITE_ACCESS);
+            if (storedWriteAccess === 'true') {
+              setHasWriteAccess(true);
+            }
           }
         }
       } catch (err) {
@@ -160,7 +168,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
       setIsSignedIn(true);
       await fetchUserProfile(token);
-      checkScopes(token);
+      await checkScopes(token);
       navigate('/app');
     },
     onError: (errorResponse) => {
@@ -176,6 +184,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
       setAccessToken(token);
       setHasWriteAccess(true);
+      localStorage.setItem(STORAGE_KEYS.WRITE_ACCESS, 'true');
 
       if (writeAccessResolve) {
         writeAccessResolve(true);
@@ -209,6 +218,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear stored authentication data
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.USER_PROFILE);
+    localStorage.removeItem(STORAGE_KEYS.WRITE_ACCESS);
     // Keep user settings in localStorage (other keys remain)
     navigate('/');
   };

@@ -34,6 +34,11 @@ export function ForecastControlsSidebar() {
 
   const oneOffNetTotal = oneOffTransactions.reduce((sum, tx) => sum + tx.amount, 0);
 
+  // Obtain locale and currency (fallback to navigator.language and USD if not provided)
+  const locale = navigator.language || 'en-US';
+  const currency = 'USD'; // Could be obtained from props or context in the future
+  const currencyFormatter = new Intl.NumberFormat(locale, { style: 'currency', currency });
+
   return (
     <div className="flex h-full w-[340px] flex-col overflow-y-auto border-r border-border/40 bg-card/60 px-4 py-5 shadow-sm scrollbar-hide">
 
@@ -202,7 +207,7 @@ export function ForecastControlsSidebar() {
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Adjustments</span>
             <span className={oneOffNetTotal < 0 ? 'text-red-500 font-medium' : oneOffNetTotal > 0 ? 'text-emerald-500 font-medium' : 'text-foreground font-medium'}>
-              {new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(oneOffNetTotal)}
+              {currencyFormatter.format(oneOffNetTotal)}
             </span>
           </div>
           <div className="flex justify-between text-sm">

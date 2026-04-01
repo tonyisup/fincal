@@ -557,6 +557,7 @@ function DayCell({
             <Button
               onClick={() => onAddTransaction(day, 'credit')}
               title="Add Income"
+              aria-label="Add income"
               variant="ghost"
               style={{ color: colors.green }}
               size="icon"
@@ -566,6 +567,7 @@ function DayCell({
             <Button
               onClick={() => onAddTransaction(day, 'debit')}
               title="Add Expense"
+              aria-label="Add expense"
               variant="ghost"
               style={{ color: colors.red }}
               size="icon"
@@ -586,7 +588,7 @@ function DayCell({
         {transactions.length > 0 && (
           <Popover>
             <PopoverTrigger asChild>
-              <button className="cursor-pointer text-muted-foreground hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-30 pointer-events-auto">
+              <button className="cursor-pointer text-muted-foreground hover:text-foreground opacity-100 md:opacity-0 md:group-hover:opacity-100 transition-opacity z-30 pointer-events-auto" aria-label="Show transaction details">
                 <Info className="w-4 h-4" />
               </button>
             </PopoverTrigger>
@@ -599,6 +601,7 @@ function DayCell({
                       size="icon"
                       variant="ghost"
                       onClick={() => onOpenExternalDate(day)}
+                      aria-label="Open in external calendar"
                     >
                       <ExternalLink className="w-4 h-4" />
                     </Button>

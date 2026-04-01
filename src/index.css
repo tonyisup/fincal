@@ -139,8 +139,4 @@
     background: color-mix(in oklab, var(--color-chart-2) 40%, var(--background));
     color: var(--foreground);
   }
-  .dark ::selection {
-    background: color-mix(in oklab, var(--color-chart-2) 40%, var(--background));
-    color: var(--foreground);
-  }
 }

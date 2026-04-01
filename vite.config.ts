@@ -15,7 +15,7 @@ export default defineConfig({
         manualChunks: {
           react: ['react', 'react-dom', 'react-router-dom'],
           google: ['@react-oauth/google'],
-          sheets: ['xlsx'],
+          sheets: ['exceljs'],
           ui: ['lucide-react', '@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-popover'],
         },
       },

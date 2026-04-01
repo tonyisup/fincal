@@ -120,32 +120,28 @@ function loadSession(): StoredSession | null {
 }
 
 export function ForecastProvider({ children }: { children: React.ReactNode }) {
+  // Load session once at the top
+  const session = loadSession();
+
   const [currentBalance, setCurrentBalance] = useState(() => {
-    const session = loadSession();
     return session?.currentBalance ?? '4000';
   });
   const [timespan, setTimespan] = useState(() => {
-    const session = loadSession();
     return session?.timespan ?? '90D';
   });
   const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
-    const session = loadSession();
     return session?.weekStartDay ?? 0;
   });
   const [warningAmount, setWarningAmount] = useState<number>(() => {
-    const session = loadSession();
     return session?.warningAmount ?? 0;
   });
   const [warningColor, setWarningColor] = useState<string>(() => {
-    const session = loadSession();
     return session?.warningColor ?? '#b45309';
   });
   const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
-    const session = loadSession();
     return session?.warningOperator ?? '<';
   });
   const [warningStyle, setWarningStyle] = useState<WarningStyle>(() => {
-    const session = loadSession();
     return session?.warningStyle ?? 'Balance Color';
   });
   
@@ -157,24 +153,19 @@ export function ForecastProvider({ children }: { children: React.ReactNode }) {
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const [preview, setPreview] = useState<ImportPreview | null>(() => {
-    const session = loadSession();
     return session?.preview ?? null;
   });
   const [mapping, setMapping] = useState<ImportColumnMapping | null>(() => {
-    const session = loadSession();
     return session?.mapping ?? null;
   });
   const [importIssues, setImportIssues] = useState<ImportIssue[]>([]);
   const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(() => {
-    const session = loadSession();
     return session?.importedTransactions ?? [];
   });
   const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => {
-    const session = loadSession();
     return session?.recurringRules ?? [];
   });
   const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(() => {
-    const session = loadSession();
     return session?.oneOffTransactions ?? [];
   });
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
@@ -184,11 +175,9 @@ export function ForecastProvider({ children }: { children: React.ReactNode }) {
   const [manualDate, setManualDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
 
   const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
-    const session = loadSession();
     return session?.selectedCreditCalendarId;
   });
   const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
-    const session = loadSession();
     return session?.selectedDebitCalendarId;
   });
 
