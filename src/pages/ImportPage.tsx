@@ -35,24 +35,37 @@ export function ImportPage() {
 
   useEffect(() => {
     if (!accessToken) return;
+
+    setCalendars([]);
+    setCalendarError(null);
+
+    const controller = new AbortController();
+
     const fetchCalendars = async () => {
       try {
         const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
           headers: { Authorization: `Bearer ${accessToken}` },
+          signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         if (response.ok) {
           const data = await response.json();
+          if (controller.signal.aborted) return;
           setCalendars(data.items ?? []);
           setCalendarError(null);
         } else {
           setCalendarError('Failed to load calendars from Google.');
         }
       } catch (err) {
+        if (err instanceof DOMException && err.name === 'AbortError') return;
+        if (controller.signal.aborted) return;
         console.error(err);
         setCalendarError(err instanceof Error ? err.message : 'Failed to load calendars.');
       }
     };
-    fetchCalendars();
+
+    void fetchCalendars();
+    return () => controller.abort();
   }, [accessToken]);
 
   const importFromFile = async (file: File) => {
@@ -172,33 +185,44 @@ export function ImportPage() {
         const calendarId = rule.direction === 'credit' ? selectedCreditCalendarId : selectedDebitCalendarId;
         const eventBody = ruleToGoogleEvent(rule);
 
-        const response = await fetch(
-          `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
-          {
-            method: 'POST',
-            headers: {
-              Authorization: `Bearer ${accessToken}`,
-              'Content-Type': 'application/json',
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(eventBody),
             },
-            body: JSON.stringify(eventBody),
-          },
-        );
+          );
 
-        if (response.ok) {
-          exportedRules.push(rule.id);
-        } else {
-          const errorText = await response.text();
-          failedRules.push({ id: rule.id, label: rule.label, error: errorText || 'Unknown error' });
+          if (response.ok) {
+            exportedRules.push(rule.id);
+          } else {
+            const errorText = await response.text();
+            failedRules.push({ id: rule.id, label: rule.label, error: errorText || 'Unknown error' });
+          }
+        } catch (ruleError) {
+          const errorMessage = ruleError instanceof Error ? ruleError.message : 'Unknown error';
+          failedRules.push({ id: rule.id, label: rule.label, error: errorMessage });
+          console.error(`Failed to export rule ${rule.label}:`, ruleError);
         }
       }
 
-      if (failedRules.length > 0) {
-        const failedSummary = failedRules.map(f => `${f.label}: ${f.error}`).join('; ');
-        throw new Error(`Exported ${exportedRules.length} rules but ${failedRules.length} failed: ${failedSummary}`);
-      }
-
       setSuccessMessage(`Exported ${exportedRules.length} recurring rules to Google Calendar.`);
-      trackEvent('google_export_completed', { rules: exportedRules.length });
+      trackEvent('google_export_completed', {
+        rules: exportedRules.length,
+        failures: failedRules.length,
+      });
+
+      if (failedRules.length > 0) {
+        const failedSummary = failedRules.map((f) => `${f.label}: ${f.error}`).join('; ');
+        setError(
+          `${failedRules.length} rule(s) could not be exported: ${failedSummary}`,
+        );
+      }
     } catch (exportError) {
       console.error(exportError);
       setError(exportError instanceof Error ? exportError.message : 'Google export failed.');
@@ -247,11 +271,11 @@ export function ImportPage() {
                   <FileSpreadsheet className="h-8 w-8 text-emerald-500" />
                   <div>
                     <p className="font-medium">Drop in CSV or Excel</p>
-                    <p className="text-xs text-muted-foreground max-w-[200px] mt-1 mx-auto">Supports .csv, .xlsx, and .xls.</p>
+                    <p className="text-xs text-muted-foreground max-w-[200px] mt-1 mx-auto">Supports .csv and .xlsx (legacy .xls is not supported).</p>
                   </div>
                   <input
                     type="file"
-                    accept=".csv,.xlsx,.xls"
+                    accept=".csv,.xlsx"
                     className="hidden"
                     onChange={(event) => {
                       const file = event.target.files?.[0];

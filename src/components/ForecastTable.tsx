@@ -29,12 +29,22 @@ interface ForecastTableProps {
 
 function SortDirectionIcon({ direction }: { direction: SortDirection }) {
   if (direction === 'desc') {
-    return <SortDesc className="w-4 h-4" />;
+    return <SortDesc className="w-4 h-4 shrink-0" aria-hidden />;
   } else if (direction === 'asc') {
-    return <SortAsc className="w-4 h-4" />;
+    return <SortAsc className="w-4 h-4 shrink-0" aria-hidden />;
   } else {
     return null;
   }
+}
+
+function ariaSortFor(
+  column: Exclude<SortKey, null>,
+  sortConfig: ForecastTableProps['sortConfig'],
+): 'ascending' | 'descending' | 'none' {
+  if (sortConfig.key !== column) return 'none';
+  if (sortConfig.direction === 'asc') return 'ascending';
+  if (sortConfig.direction === 'desc') return 'descending';
+  return 'none';
 }
 export function ForecastTable({
   sortedForecast,
@@ -70,30 +80,48 @@ export function ForecastTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-background/90">
-              <TableHead onClick={() => handleSort('when')} className="cursor-pointer select-none px-4 py-3">
-                <div className="flex items-center gap-2">
-                  When
+              <TableHead aria-sort={ariaSortFor('when', sortConfig)} className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => handleSort('when')}
+                  className="inline-flex w-full cursor-pointer items-center gap-2 rounded-sm text-left font-medium outline-none select-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span>When</span>
                   {sortConfig.key === 'when' ? <SortDirectionIcon direction={sortConfig.direction} /> : null}
-                  {(sortConfig.key === null || sortConfig.direction === null) ? <SortDirectionIcon direction="asc" /> : null}
-                </div>
+                  {sortConfig.key === null || sortConfig.direction === null ? (
+                    <SortDirectionIcon direction="asc" />
+                  ) : null}
+                </button>
               </TableHead>
-              <TableHead onClick={() => handleSort('summary')} className="cursor-pointer select-none py-3">
-                <div className="flex items-center gap-2">
-                  Summary
+              <TableHead aria-sort={ariaSortFor('summary', sortConfig)} className="py-3">
+                <button
+                  type="button"
+                  onClick={() => handleSort('summary')}
+                  className="inline-flex w-full cursor-pointer items-center gap-2 rounded-sm text-left font-medium outline-none select-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span>Summary</span>
                   {sortConfig.key === 'summary' ? <SortDirectionIcon direction={sortConfig.direction} /> : null}
-                </div>
+                </button>
               </TableHead>
-              <TableHead onClick={() => handleSort('amount')} className="cursor-pointer select-none py-3">
-                <div className="flex items-center gap-2">
-                  Amount
+              <TableHead aria-sort={ariaSortFor('amount', sortConfig)} className="py-3">
+                <button
+                  type="button"
+                  onClick={() => handleSort('amount')}
+                  className="inline-flex w-full cursor-pointer items-center gap-2 rounded-sm text-left font-medium outline-none select-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span>Amount</span>
                   {sortConfig.key === 'amount' ? <SortDirectionIcon direction={sortConfig.direction} /> : null}
-                </div>
+                </button>
               </TableHead>
-              <TableHead onClick={() => handleSort('balance')} className="cursor-pointer select-none px-4 py-3">
-                <div className="flex items-center gap-2">
-                  Balance
+              <TableHead aria-sort={ariaSortFor('balance', sortConfig)} className="px-4 py-3">
+                <button
+                  type="button"
+                  onClick={() => handleSort('balance')}
+                  className="inline-flex w-full cursor-pointer items-center gap-2 rounded-sm text-left font-medium outline-none select-none hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2"
+                >
+                  <span>Balance</span>
                   {sortConfig.key === 'balance' ? <SortDirectionIcon direction={sortConfig.direction} /> : null}
-                </div>
+                </button>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -105,18 +133,19 @@ export function ForecastTable({
                 </TableCell>
               </TableRow>
             )}
-            {sortedForecast.map((entry, index) => {
+            {sortedForecast.map((entry) => {
               const isWarning = warningOperator === '<' ? entry.balance < warningAmount : entry.balance <= warningAmount;
               const rowStyle = isWarning ? {
                 backgroundColor: warningStyle === 'Row Background' ? warningColor : undefined,
                 color: warningStyle === 'Text Color' ? warningColor : undefined,
               } : undefined;
-              const uniqueId = `${format(entry.when, 'yyyy-MM-dd')}-${entry.summary}-${entry.amount}-${index}`;
+              const rowKey = `${format(entry.when, 'yyyy-MM-dd')}-${entry.summary}-${entry.amount}-${entry.balance}-${entry.type}`;
+              const rowDomId = `forecast-row-${rowKey.replace(/[^a-zA-Z0-9_-]/g, '_')}`;
 
               return (
                 <TableRow
-                  key={uniqueId}
-                  id={`row-${uniqueId}`}
+                  key={rowKey}
+                  id={rowDomId}
                   style={rowStyle}
                   className={cn(
                     'border-border/60 transition-colors hover:bg-muted/30',

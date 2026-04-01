@@ -1,4 +1,5 @@
 import { format, isValid, parse, parseISO } from 'date-fns';
+import type { Cell, Row } from 'exceljs';
 import type {
   ImportColumnMapping,
   ImportIssue,
@@ -54,6 +55,9 @@ function parseDateValue(value: string) {
   return null;
 }
 
+/** Full-string numeric: optional leading minus, digits, optional fractional part (no partial parses like "7-Eleven" → 7). */
+const STRICT_AMOUNT_PATTERN = /^-?\d+(\.\d+)?$/;
+
 function parseAmountValue(value: string | undefined) {
   if (!value) {
     return null;
@@ -61,6 +65,10 @@ function parseAmountValue(value: string | undefined) {
 
   const normalized = value.replace(/[$,\s]/g, '').replace(/\((.+)\)/, '-$1');
   if (!normalized) {
+    return null;
+  }
+
+  if (!STRICT_AMOUNT_PATTERN.test(normalized)) {
     return null;
   }
 
@@ -116,7 +124,18 @@ async function parseCSV(file: File): Promise<(string | number | null)[][]> {
 }
 
 export async function parseImportFile(file: File): Promise<ImportPreview> {
-  const isCSV = file.type === 'text/csv' || file.name.toLowerCase().endsWith('.csv');
+  const nameLower = file.name.toLowerCase();
+  const isCSV = file.type === 'text/csv' || nameLower.endsWith('.csv');
+  const isLegacyXls =
+    file.type === 'application/vnd.ms-excel' ||
+    (nameLower.endsWith('.xls') && !nameLower.endsWith('.xlsx'));
+
+  if (isLegacyXls) {
+    throw new Error(
+      'Legacy Excel .xls format is not supported. Save the file as .xlsx or CSV and upload again.',
+    );
+  }
+
   let matrix: (string | number | null)[][] = [];
 
   if (isCSV) {
@@ -132,9 +151,9 @@ export async function parseImportFile(file: File): Promise<ImportPreview> {
       throw new Error('No worksheet found in the file.');
     }
 
-    worksheet.eachRow((row) => {
+    worksheet.eachRow((row: Row) => {
       const rowData: (string | number | null)[] = [];
-      row.eachCell({ includeEmpty: true }, (cell) => {
+      row.eachCell({ includeEmpty: true }, (cell: Cell) => {
         const value = cell.value;
         if (value === null || value === undefined) {
           rowData.push('');

@@ -237,24 +237,36 @@ export function MainApp({
       return;
     }
 
+    const controller = new AbortController();
+
     const fetchCalendars = async () => {
       try {
         const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
           headers: {
             Authorization: `Bearer ${accessToken}`,
           },
+          signal: controller.signal,
         });
+        if (controller.signal.aborted) return;
         if (!response.ok) {
           throw new Error('Failed to fetch calendars');
         }
         const data = await response.json();
-        setCalendars(data.items ?? []);
+        if (controller.signal.aborted) return;
+        const items: Calendar[] = data.items ?? [];
+        setCalendars(items);
+        const ids = new Set(items.map((c) => c.id));
+        setSelectedCreditCalendarId((prev) => (prev && ids.has(prev) ? prev : undefined));
+        setSelectedDebitCalendarId((prev) => (prev && ids.has(prev) ? prev : undefined));
       } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
+        if (controller.signal.aborted) return;
         console.error(fetchError);
       }
     };
 
-    fetchCalendars();
+    void fetchCalendars();
+    return () => controller.abort();
   }, [accessToken]);
 
   const importFromFile = async (file: File) => {
@@ -636,11 +648,11 @@ export function MainApp({
                     <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
                     <div>
                       <p className="font-medium">Drop in CSV or Excel</p>
-                      <p className="text-sm text-muted-foreground">Supports `.csv`, `.xlsx`, and `.xls`. Files stay in this browser session and never leave your browser.</p>
+                      <p className="text-sm text-muted-foreground">Supports `.csv` and `.xlsx` (legacy `.xls` is not supported). Files stay in this browser session and never leave your browser.</p>
                     </div>
                     <input
                       type="file"
-                      accept=".csv,.xlsx,.xls"
+                      accept=".csv,.xlsx"
                       className="hidden"
                       onChange={(event) => {
                         const file = event.target.files?.[0];
