@@ -229,11 +229,8 @@ export function MainApp({
     persistSession();
   }, [persistSession]);
 
-  const forecastStartDate = useMemo(() => format(startOfDay(addDays(new Date(), 1)), 'yyyy-MM-dd'), []);
-  const forecastEndDate = useMemo(
-    () => format(defaultForecastEndDate(startOfDay(addDays(new Date(), 1)), timespan), 'yyyy-MM-dd'),
-    [timespan],
-  );
+  const forecastStartDate = format(startOfDay(addDays(new Date(), 1)), 'yyyy-MM-dd');
+  const forecastEndDate = format(defaultForecastEndDate(startOfDay(addDays(new Date(), 1)), timespan), 'yyyy-MM-dd');
 
   useEffect(() => {
     if (!accessToken) {

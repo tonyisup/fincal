@@ -140,6 +140,7 @@ export function ForecastTable({
                               className="opacity-0 group-hover:opacity-100"
                               size="icon"
                               variant="ghost"
+                              aria-label="Edit forecast"
                             >
                               <Edit />
                             </Button>
@@ -165,6 +166,7 @@ export function ForecastTable({
                                   variant="ghost"
                                   size="icon"
                                   aria-label="Open external date"
+                                  title="Open external date"
                                 >
                                   <ExternalLink />
                                 </Button>

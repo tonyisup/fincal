@@ -31,6 +31,7 @@ export function ImportPage() {
 
   const { accessToken, userProfile, login, hasWriteAccess, grantWriteAccess } = useAuth();
   const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [calendarError, setCalendarError] = useState<string | null>(null);
 
   useEffect(() => {
     if (!accessToken) return;
@@ -42,9 +43,13 @@ export function ImportPage() {
         if (response.ok) {
           const data = await response.json();
           setCalendars(data.items ?? []);
+          setCalendarError(null);
+        } else {
+          setCalendarError('Failed to load calendars from Google.');
         }
       } catch (err) {
         console.error(err);
+        setCalendarError(err instanceof Error ? err.message : 'Failed to load calendars.');
       }
     };
     fetchCalendars();
@@ -385,6 +390,12 @@ export function ImportPage() {
                     <p className="mt-2 text-sm font-semibold">{selectedCreditCalendarId && selectedDebitCalendarId ? 'Calendars selected' : 'Choose calendars below'}</p>
                   </div>
                 </div>
+
+                {calendarError && (
+                  <div className="rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3 text-sm text-red-700">
+                    {calendarError}
+                  </div>
+                )}
 
                 <div className="grid gap-3 sm:grid-cols-2">
                   <label className="space-y-2 rounded-[1.25rem] border border-border/40 bg-muted/20 p-4 text-sm">

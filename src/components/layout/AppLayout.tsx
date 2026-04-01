@@ -9,7 +9,7 @@ export function AppLayout() {
 
   if (isRestoringSession) {
     return (
-      <div className="flex justify-center items-center h-screen">
+      <div className="flex justify-center items-center h-screen" role="status" aria-label="Restoring session">
         <Loader2 className="h-8 w-8 animate-spin" />
         <span>Loading...</span>
       </div>

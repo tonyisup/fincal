@@ -14,6 +14,10 @@ export default defineConfig({
       output: {
         manualChunks: (id) => {
           if (id.includes('node_modules')) {
+            if (id.includes('lucide-react') || id.includes('@radix-ui/react-dialog') ||
+                id.includes('@radix-ui/react-dropdown-menu') || id.includes('@radix-ui/react-popover')) {
+              return 'ui';
+            }
             if (id.includes('react-dom') || id.includes('react-router-dom') || id.includes('react/')) {
               return 'react';
             }
@@ -22,10 +26,6 @@ export default defineConfig({
             }
             if (id.includes('exceljs')) {
               return 'sheets';
-            }
-            if (id.includes('lucide-react') || id.includes('@radix-ui/react-dialog') ||
-                id.includes('@radix-ui/react-dropdown-menu') || id.includes('@radix-ui/react-popover')) {
-              return 'ui';
             }
           }
         },

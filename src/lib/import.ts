@@ -70,36 +70,46 @@ function parseAmountValue(value: string | undefined) {
 
 async function parseCSV(file: File): Promise<(string | number | null)[][]> {
   const text = await file.text();
-  const lines = text.split(/\r?\n/);
   const matrix: (string | number | null)[][] = [];
+  let row: (string | number | null)[] = [];
+  let current = '';
+  let inQuotes = false;
 
-  for (const line of lines) {
-    if (!line.trim()) continue;
+  for (let i = 0; i < text.length; i++) {
+    const char = text[i];
 
-    const row: (string | number | null)[] = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        row.push(current.trim());
-        current = '';
+    if (char === '"') {
+      if (inQuotes && text[i + 1] === '"') {
+        current += '"';
+        i++;
       } else {
-        current += char;
+        inQuotes = !inQuotes;
       }
+    } else if (char === ',' && !inQuotes) {
+      row.push(current.trim());
+      current = '';
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && text[i + 1] === '\n') {
+        i++;
+      }
+      if (current || row.length > 0) {
+        row.push(current.trim());
+        if (row.some((cell) => String(cell ?? '').trim() !== '')) {
+          matrix.push(row);
+        }
+        row = [];
+        current = '';
+      }
+    } else {
+      current += char;
     }
+  }
 
+  if (current || row.length > 0) {
     row.push(current.trim());
-    matrix.push(row);
+    if (row.some((cell) => String(cell ?? '').trim() !== '')) {
+      matrix.push(row);
+    }
   }
 
   return matrix;
