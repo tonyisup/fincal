@@ -7,6 +7,7 @@
     "dev": "concurrently \"vite\" \"tsx server.ts\"",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "test": "vitest run",
     "preview": "vite preview"
   },
   "dependencies": {
@@ -31,6 +32,7 @@
     "cors": "^2.8.5",
     "date-fns": "^4.1.0",
     "dotenv": "^17.2.3",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "lucide-react": "^0.513.0",
     "next-themes": "^0.4.6",

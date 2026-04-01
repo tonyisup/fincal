@@ -1,3 +1,5 @@
+import type { CalendarEvent } from '@/types/calendar';
+
 export interface BatchRequest {
   method: string;
   url: string; // Relative path, e.g. /calendar/v3/calendars/primary/events
@@ -29,4 +31,48 @@ export function createBatchBody(requests: BatchRequest[], boundary: string = `ba
 
   const body = parts.join('') + `--${boundary}--`;
   return { body, boundary };
+}
+
+export async function fetchCalendarEvents(
+  calendarId: string,
+  accessToken: string,
+  options?: { timeMin?: string; timeMax?: string }
+): Promise<CalendarEvent[]> {
+  const now = new Date();
+  const oneYearAgo = new Date(now);
+  oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+  const timeMin = options?.timeMin || oneYearAgo.toISOString();
+  const timeMax = options?.timeMax || now.toISOString();
+
+  const allEvents: CalendarEvent[] = [];
+  let pageToken: string | undefined = undefined;
+
+  do {
+    const params = new URLSearchParams({
+      timeMin,
+      timeMax,
+      singleEvents: 'true',
+      orderBy: 'startTime',
+    });
+
+    if (pageToken) {
+      params.set('pageToken', pageToken);
+    }
+
+    const response = await fetch(
+      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
+      {
+        headers: { Authorization: `Bearer ${accessToken}` },
+      },
+    );
+    if (!response.ok) {
+      throw new Error('Failed to load Google Calendar events.');
+    }
+    const data = await response.json();
+    allEvents.push(...(data.items ?? []));
+    pageToken = data.nextPageToken;
+  } while (pageToken);
+
+  return allEvents;
 }

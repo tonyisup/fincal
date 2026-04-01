@@ -11,17 +11,16 @@ export interface ParsedEvent {
   description: string;
 }
 
-// Regex to capture: optional $, then digits (with optional decimal), then whitespace, then description
-// Example: $123.45 My Event -> 123.45, My Event
-// Example: 50 My Event -> 50, My Event
-const EVENT_TITLE_REGEX = /^\$?\s*(\d+(?:\.\d{1,2})?)\s*(.*)$/;
+// Regex to capture an optional sign, optional $, number, then description.
+const EVENT_TITLE_REGEX = /^([+-])?\s*\$?\s*(\d+(?:\.\d{1,2})?)\s*(.*)$/;
 
 export function parseEventTitle(title: string | undefined): ParsedEvent | null {
   if (!title) return null;
   const match = title.match(EVENT_TITLE_REGEX);
-  if (match && match[1] && match[2] !== undefined) {
-    const amount = parseFloat(match[1]);
-    const description = match[2].trim();
+  if (match && match[2] && match[3] !== undefined) {
+    const sign = match[1] === '-' ? -1 : 1;
+    const amount = parseFloat(match[2]) * sign;
+    const description = match[3].trim();
     if (!isNaN(amount)) {
       return { amount, description };
     }

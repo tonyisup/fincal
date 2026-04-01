@@ -1,17 +1,20 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
-import { Button } from "@/components/ui/button";
-import { Label } from "@/components/ui/label";
-
-import { Checkbox } from "@/components/ui/checkbox";
-import { Card, CardContent } from "@/components/ui/card";
-import { startOfDay, endOfDay, isBefore, isAfter, addDays, addMonths, addYears, format } from 'date-fns';
-import { Loader2, LayoutGrid, Calendar as CalendarIcon, LogOut, ChevronDown, Search, Plus } from 'lucide-react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { format, startOfDay, addDays } from 'date-fns';
+import {
+  AlertCircle,
+  Calendar as CalendarIcon,
+  FileSpreadsheet,
+  LayoutGrid,
+  Loader2,
+  LogOut,
+  Search,
+  Upload,
+} from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { ForecastTable, type SortDirection, type SortKey } from '@/components/ForecastTable';
-import type { Calendar, CalendarEvent, Transaction, ForecastEntry, UserProfile } from '../types/calendar';
+import { ForecastCalendar, type WarningStyle } from '@/components/ForecastCalendar';
 import { ModeToggle } from '@/components/ui/mode-toggle';
-import { ForecastCalendar } from '@/components/ForecastCalendar';
-import { AddTransactionDialog } from '@/components/AddTransactionDialog';
-import { parseEventTitle, parseGoogleDate } from '@/lib/utils';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -20,29 +23,39 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
-import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText, InputGroupButton } from '@/components/ui/input-group';
+import { InputGroup, InputGroupAddon, InputGroupInput, InputGroupText } from '@/components/ui/input-group';
 import { ButtonGroup } from '@/components/ui/button-group';
-import { type WarningStyle } from '@/components/ForecastCalendar';
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
+import type { Calendar, CalendarEvent, ForecastEntry, UserProfile } from '@/types/calendar';
+import type {
+  ImportColumnMapping,
+  ImportIssue,
+  ImportPreview,
+  NormalizedTransaction,
+  RecurringCadence,
+  RecurringRule,
+} from '@/types/forecast';
+import { trackEvent } from '@/lib/analytics';
+import { defaultForecastEndDate, daysUntilNegative, detectRecurringRules, forecastPointsToEntries, generateForecast, googleEventsToTransactions, lowestBalance, ruleToGoogleEvent } from '@/lib/forecast';
+import { detectImportMapping, normalizeImportedTransactions, parseImportFile } from '@/lib/import';
+import { fetchCalendarEvents } from '@/lib/googleBatch';
 
+const STORAGE_KEY = 'fincal_session_v2';
 
-interface UserSettings {
-  selectedCreditCalendarId: string | undefined;
-  selectedDebitCalendarId: string | undefined;
-  startBalance: string;
+interface StoredSession {
+  currentBalance: string;
   timespan: string;
-  autoRun: boolean;
   weekStartDay: 0 | 1;
-  viewMode: 'table' | 'calendar';
   warningAmount: number;
   warningColor: string;
   warningOperator: '<' | '<=';
   warningStyle: WarningStyle;
+  importedTransactions: NormalizedTransaction[];
+  recurringRules: RecurringRule[];
+  oneOffTransactions: NormalizedTransaction[];
+  mapping?: ImportColumnMapping;
+  preview?: ImportPreview | null;
+  selectedCreditCalendarId?: string;
+  selectedDebitCalendarId?: string;
 }
 
 interface MainAppProps {
@@ -51,831 +64,1151 @@ interface MainAppProps {
   handleLogout: () => void;
   hasWriteAccess: boolean;
   grantWriteAccess: () => Promise<boolean>;
+  login: () => void;
 }
 
-export function MainApp({ userProfile, accessToken, handleLogout, hasWriteAccess, grantWriteAccess }: MainAppProps) {
-  const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved).selectedCreditCalendarId : undefined;
+function loadSession(): StoredSession | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    return raw ? (JSON.parse(raw) as StoredSession) : null;
+  } catch (error) {
+    console.warn('Failed to load session', error);
+    return null;
+  }
+}
+
+function confidenceLabel(confidence: number) {
+  if (confidence >= 0.85) return 'High';
+  if (confidence >= 0.65) return 'Medium';
+  return 'Low';
+}
+
+function cadenceOptions(): RecurringCadence[] {
+  return ['weekly', 'biweekly', 'semimonthly', 'monthly', 'yearly', 'custom'];
+}
+
+function mappingValue(mapping: ImportColumnMapping, key: keyof ImportColumnMapping) {
+  return mapping[key] ?? '';
+}
+
+function formatCurrency(amount: number) {
+  return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(amount);
+}
+
+function cadenceLabel(cadence: RecurringCadence) {
+  switch (cadence) {
+    case 'biweekly':
+      return 'Biweekly';
+    case 'semimonthly':
+      return 'Semi-monthly';
+    default:
+      return cadence.charAt(0).toUpperCase() + cadence.slice(1);
+  }
+}
+
+export function MainApp({
+  userProfile,
+  accessToken,
+  handleLogout,
+  hasWriteAccess,
+  grantWriteAccess,
+  login,
+}: MainAppProps) {
+  const [currentBalance, setCurrentBalance] = useState(() => {
+    const session = loadSession();
+    return session?.currentBalance ?? '4000';
   });
-  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved).selectedDebitCalendarId : undefined;
-  });
-  const [startBalance, setStartBalance] = useState<string>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved).startBalance : "4000";
-  });
-  const [timespan, setTimespan] = useState<string>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).timespan ? JSON.parse(saved).timespan : '1M';
+  const [timespan, setTimespan] = useState(() => {
+    const session = loadSession();
+    return session?.timespan ?? '90D';
   });
   const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? JSON.parse(saved).weekStartDay ?? 0 : 0;
+    const session = loadSession();
+    return session?.weekStartDay ?? 0;
   });
-  const [viewMode, setViewMode] = useState<'table' | 'calendar'>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? (JSON.parse(saved).viewMode || 'calendar') : 'calendar';
-  });
-
   const [warningAmount, setWarningAmount] = useState<number>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningAmount !== undefined ? JSON.parse(saved).warningAmount : 0;
+    const session = loadSession();
+    return session?.warningAmount ?? 0;
   });
-
   const [warningColor, setWarningColor] = useState<string>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningColor ? JSON.parse(saved).warningColor : '#7b7b54ff';
+    const session = loadSession();
+    return session?.warningColor ?? '#b45309';
   });
-
   const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningOperator ? JSON.parse(saved).warningOperator : '<';
+    const session = loadSession();
+    return session?.warningOperator ?? '<';
   });
-
   const [warningStyle, setWarningStyle] = useState<WarningStyle>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved && JSON.parse(saved).warningStyle ? JSON.parse(saved).warningStyle : 'Row Background';
+    const session = loadSession();
+    return session?.warningStyle ?? 'Balance Color';
   });
-
-  const [forecast, setForecast] = useState<ForecastEntry[]>([]);
+  const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: null, direction: null });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [sortConfig, setSortConfig] = useState<{
-    key: SortKey;
-    direction: SortDirection;
-  }>({
-    key: null,
-    direction: null
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const [preview, setPreview] = useState<ImportPreview | null>(() => {
+    const session = loadSession();
+    return session?.preview ?? null;
   });
-  const [startFromTomorrow, setStartFromTomorrow] = useState(true);
-  const [settingsLoaded, setSettingsLoaded] = useState(false);
-  const [autoRun, setAutoRun] = useState<boolean>(() => {
-    const saved = localStorage.getItem('userSettings');
-    return saved ? !!JSON.parse(saved).autoRun : false;
+  const [mapping, setMapping] = useState<ImportColumnMapping | null>(() => {
+    const session = loadSession();
+    return session?.mapping ?? null;
+  });
+  const [importIssues, setImportIssues] = useState<ImportIssue[]>([]);
+  const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.importedTransactions ?? [];
+  });
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => {
+    const session = loadSession();
+    return session?.recurringRules ?? [];
+  });
+  const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.oneOffTransactions ?? [];
+  });
+  const [forecast, setForecast] = useState<ForecastEntry[]>([]);
+
+  const [manualDescription, setManualDescription] = useState('');
+  const [manualAmount, setManualAmount] = useState('');
+  const [manualDate, setManualDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
+
+  const [calendars, setCalendars] = useState<Calendar[]>([]);
+  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedCreditCalendarId;
+  });
+  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedDebitCalendarId;
   });
 
-  // State for Add Transaction Dialog
-  const [isAddTransactionOpen, setIsAddTransactionOpen] = useState(false);
-  const [addTransactionDefaults, setAddTransactionDefaults] = useState<{ date?: Date, type?: 'credit' | 'debit' }>({});
-
-  const handleAddTransaction = useCallback((date?: Date, type?: 'credit' | 'debit') => {
-    setAddTransactionDefaults({ date, type });
-    setIsAddTransactionOpen(true);
-  }, []);
-
-  // Load user-specific settings when userProfile is available
   useEffect(() => {
-    if (userProfile?.email) {
-      const key = `userSettings_${userProfile.email}`;
-      const saved = localStorage.getItem(key);
-      if (saved) {
-        try {
-          const parsed = JSON.parse(saved);
-          if (parsed.selectedCreditCalendarId) setSelectedCreditCalendarId(parsed.selectedCreditCalendarId);
-          if (parsed.selectedDebitCalendarId) setSelectedDebitCalendarId(parsed.selectedDebitCalendarId);
-          if (parsed.startBalance !== undefined) setStartBalance(parsed.startBalance);
-          if (parsed.timespan) setTimespan(parsed.timespan);
-          if (parsed.autoRun !== undefined) setAutoRun(parsed.autoRun);
-          if (parsed.weekStartDay !== undefined) setWeekStartDay(parsed.weekStartDay);
-          if (parsed.viewMode) setViewMode(parsed.viewMode);
-          if (parsed.warningAmount !== undefined) setWarningAmount(parsed.warningAmount);
-          if (parsed.warningColor) setWarningColor(parsed.warningColor);
-          if (parsed.warningOperator) setWarningOperator(parsed.warningOperator);
-          if (parsed.warningStyle) setWarningStyle(parsed.warningStyle);
-        } catch (e) {
-          console.error("Failed to parse user settings", e);
-        }
-      }
-      setSettingsLoaded(true);
-    }
-  }, [userProfile]);
+    trackEvent('return_usage', { signedIn: Boolean(accessToken) });
+  }, [accessToken]);
 
-  // Save settings to localStorage whenever they change (scoped to user)
+  const persistSession = useCallback(() => {
+    const payload: StoredSession = {
+      currentBalance,
+      timespan,
+      weekStartDay,
+      warningAmount,
+      warningColor,
+      warningOperator,
+      warningStyle,
+      importedTransactions,
+      recurringRules,
+      oneOffTransactions,
+      mapping: mapping ?? undefined,
+      preview,
+      selectedCreditCalendarId,
+      selectedDebitCalendarId,
+    };
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+  }, [
+    currentBalance,
+    timespan,
+    weekStartDay,
+    warningAmount,
+    warningColor,
+    warningOperator,
+    warningStyle,
+    importedTransactions,
+    recurringRules,
+    oneOffTransactions,
+    mapping,
+    preview,
+    selectedCreditCalendarId,
+    selectedDebitCalendarId,
+  ]);
+
   useEffect(() => {
-    if (userProfile?.email && settingsLoaded) {
-      const settings: UserSettings = {
-        selectedCreditCalendarId,
-        selectedDebitCalendarId,
-        startBalance,
-        timespan,
-        autoRun,
-        weekStartDay,
-        viewMode,
-        warningAmount,
-        warningColor,
-        warningOperator,
-        warningStyle,
-      };
-      localStorage.setItem(`userSettings_${userProfile.email}`, JSON.stringify(settings));
+    persistSession();
+  }, [persistSession]);
 
-      // Also update global settings as a fallback/cache for initial load
-      localStorage.setItem('userSettings', JSON.stringify(settings));
+  const forecastStartDate = format(startOfDay(addDays(new Date(), 1)), 'yyyy-MM-dd');
+  const forecastEndDate = format(defaultForecastEndDate(startOfDay(addDays(new Date(), 1)), timespan), 'yyyy-MM-dd');
+
+  useEffect(() => {
+    if (!accessToken) {
+      return;
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, startBalance, timespan, autoRun, weekStartDay, viewMode, warningAmount, warningColor, warningOperator, warningStyle, userProfile, settingsLoaded]);
 
-  const fetchCalendars = useCallback(async () => {
-    if (!accessToken) return;
-    try {
-      setIsLoading(true);
-      setError(null);
-      const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
+    const controller = new AbortController();
+
+    const fetchCalendars = async () => {
+      try {
+        const response = await fetch('https://www.googleapis.com/calendar/v3/users/me/calendarList', {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+          signal: controller.signal,
+        });
+        if (controller.signal.aborted) return;
+        if (!response.ok) {
+          throw new Error('Failed to fetch calendars');
         }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw {
-          message: errorData.error?.message || response.statusText,
-          status: response.status
-        };
+        const data = await response.json();
+        if (controller.signal.aborted) return;
+        const items: Calendar[] = data.items ?? [];
+        setCalendars(items);
+        const ids = new Set(items.map((c) => c.id));
+        setSelectedCreditCalendarId((prev) => (prev && ids.has(prev) ? prev : undefined));
+        setSelectedDebitCalendarId((prev) => (prev && ids.has(prev) ? prev : undefined));
+      } catch (fetchError) {
+        if (fetchError instanceof DOMException && fetchError.name === 'AbortError') return;
+        if (controller.signal.aborted) return;
+        console.error(fetchError);
       }
+    };
 
-      const data = await response.json();
-      setCalendars(data.items || []);
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      console.error("Error fetching calendars:", err);
-      setError(`Failed to fetch calendars: ${err.message}`);
-      if (err.status === 401) handleLogout();
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, handleLogout]);
+    void fetchCalendars();
+    return () => controller.abort();
+  }, [accessToken]);
 
-  const createCalendar = async (summary: string) => {
-    if (!accessToken) return null;
+  const importFromFile = async (file: File) => {
+    setIsLoading(true);
+    setError(null);
+    setSuccessMessage(null);
+    trackEvent('upload_started', { fileName: file.name, size: file.size });
     try {
-      setIsLoading(true);
-      const response = await fetch('https://www.googleapis.com/calendar/v3/calendars', {
-        method: 'POST',
-        headers: {
-          'Authorization': `Bearer ${accessToken}`,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ summary })
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw {
-          message: errorData.error?.message || response.statusText,
-          status: response.status
-        };
-      }
-
-      const newCalendar = await response.json();
-      await fetchCalendars(); // Refresh calendar list
-      return newCalendar;
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      console.error("Error creating calendar:", err);
-      setError(`Failed to create calendar: ${err.message}`);
-      if (err.status === 401) handleLogout();
-      return null;
+      const nextPreview = await parseImportFile(file);
+      const nextMapping = detectImportMapping(nextPreview.headers);
+      setPreview(nextPreview);
+      setMapping(nextMapping);
+      setImportIssues([]);
+      setSuccessMessage(`Loaded ${nextPreview.rows.length} rows from ${file.name}. Review the mapping and finish import.`);
+    } catch (importError) {
+      console.error(importError);
+      setError(importError instanceof Error ? importError.message : 'Failed to read file.');
+      trackEvent('upload_failed');
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleCreateCalendar = async (type: 'credit' | 'debit') => {
-    if (!hasWriteAccess) {
-      const granted = await grantWriteAccess();
-      if (!granted) return; // User denied or failed
+  const completeImport = () => {
+    if (!preview || !mapping) {
+      setError('Upload a CSV or XLSX file before importing.');
+      return;
     }
 
-    const name = window.prompt("Enter new calendar name:");
-    if (name) {
-      const newCal = await createCalendar(name);
-      if (newCal) {
-        if (type === 'credit') setSelectedCreditCalendarId(newCal.id);
-        else setSelectedDebitCalendarId(newCal.id);
-      }
+    const { transactions, issues } = normalizeImportedTransactions(preview.rows, mapping, preview.source);
+    setImportIssues(issues);
+
+    if (transactions.length === 0) {
+      setError('No valid transactions were found after normalization.');
+      return;
     }
+
+    const nextRules = detectRecurringRules(transactions);
+    setImportedTransactions(transactions);
+    setRecurringRules(nextRules);
+    setError(null);
+    setSuccessMessage(`Imported ${transactions.length} transactions and detected ${nextRules.length} recurring rules.`);
+    trackEvent('upload_completed', { transactions: transactions.length, rules: nextRules.length });
   };
 
-  useEffect(() => {
-    if (accessToken) {
-      fetchCalendars();
-    }
-  }, [fetchCalendars, accessToken]);
+  const resetImportDraft = () => {
+    setPreview(null);
+    setMapping(null);
+    setImportIssues([]);
+    setSuccessMessage('Cleared the current import draft.');
+  };
 
-  const fetchEvents = useCallback(async (calendarId: string, timeMin: Date, timeMax: Date): Promise<CalendarEvent[]> => {
+  const generateLocalForecast = () => {
+    const parsedBalance = Number.parseFloat(currentBalance);
+    if (!Number.isFinite(parsedBalance)) {
+      setError('Current balance must be a valid number.');
+      return;
+    }
+
+    const points = generateForecast({
+      currentBalance: parsedBalance,
+      recurringRules,
+      oneOffTransactions,
+      startDate: forecastStartDate,
+      endDate: forecastEndDate,
+    });
+
+    const entries = forecastPointsToEntries(points, forecastStartDate, parsedBalance);
+    setForecast(entries);
+    setError(null);
+    setSuccessMessage(`Forecast generated through ${forecastEndDate}.`);
+    trackEvent('forecast_generated', {
+      recurringRules: recurringRules.filter((rule) => rule.enabled).length,
+      oneOffTransactions: oneOffTransactions.length,
+    });
+  };
+
+  const addManualAdjustment = () => {
+    const amount = Number.parseFloat(manualAmount);
+    if (!manualDescription || !manualDate || !Number.isFinite(amount) || amount === 0) {
+      setError('Enter a description, date, and non-zero amount for the manual adjustment.');
+      return;
+    }
+
+    const nextTransaction: NormalizedTransaction = {
+      id: `manual-${manualDate}-${manualDescription}-${Date.now()}`,
+      source: 'manual',
+      date: manualDate,
+      description: manualDescription,
+      amount,
+    };
+
+    setOneOffTransactions((current) => [...current, nextTransaction].sort((a, b) => a.date.localeCompare(b.date)));
+    setManualDescription('');
+    setManualAmount('');
+    setSuccessMessage(`Added planned adjustment: ${nextTransaction.description}.`);
+  };
+
+  const fetchEvents = useCallback(async (calendarId: string): Promise<CalendarEvent[]> => {
     if (!accessToken) return [];
-    try {
-      const params = new URLSearchParams({
-        timeMin: timeMin.toISOString(),
-        timeMax: timeMax.toISOString(),
-        singleEvents: 'true',
-        orderBy: 'startTime',
-        maxResults: '250',
-      });
+    return fetchCalendarEvents(calendarId, accessToken);
+  }, [accessToken]);
 
-      const response = await fetch(`https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`, {
-        headers: {
-          'Authorization': `Bearer ${accessToken}`
-        }
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw {
-          message: errorData.error?.message || response.statusText,
-          status: response.status
-        };
-      }
-
-      const data = await response.json();
-      return data.items || [];
-    } catch (err: any) { // eslint-disable-line @typescript-eslint/no-explicit-any
-      console.error(`Error fetching events for ${calendarId}:`, err);
-      setError(`Failed to fetch events for calendar ${calendarId}: ${err.message}`);
-      if (err.status === 401) handleLogout();
-      return [];
-    }
-  }, [accessToken, handleLogout]);
-
-  const runForecast = useCallback(async () => {
-    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
-      if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
-        setError("Please fill all fields: Start Balance, Timespan, Credit Calendar, and Debit Calendar.");
-        return;
-      }
-    }
-
-    if (!selectedCreditCalendarId || !selectedDebitCalendarId || !timespan || !startBalance) {
+  const importFromGoogleCalendars = async () => {
+    if (!accessToken || !selectedCreditCalendarId || !selectedDebitCalendarId) {
+      setError('Connect Google and choose both an income and expense calendar first.');
       return;
     }
 
     setIsLoading(true);
     setError(null);
-    setForecast([]);
-
-    const numericStartBalance = parseFloat(startBalance);
-    if (isNaN(numericStartBalance)) {
-      setError("Start balance must be a number.");
-      setIsLoading(false);
-      return;
-    }
-
-    const forecastStartDate = startFromTomorrow
-      ? startOfDay(addDays(new Date(), 1))
-      : startOfDay(new Date());
-
-    let forecastEndDate = new Date(forecastStartDate);
-    switch (timespan) {
-      case '1M': forecastEndDate = addMonths(forecastStartDate, 1); break;
-      case '3M': forecastEndDate = addMonths(forecastStartDate, 3); break;
-      case '6M': forecastEndDate = addMonths(forecastStartDate, 6); break;
-      case '1Y': forecastEndDate = addYears(forecastStartDate, 1); break;
-      case '2Y': forecastEndDate = addYears(forecastStartDate, 2); break;
-      default: forecastEndDate = addMonths(forecastStartDate, 1); break;
-    }
-    forecastEndDate = endOfDay(forecastEndDate);
-
-    if (isBefore(forecastEndDate, forecastStartDate)) {
-      setError("End date cannot be before today.");
-      setIsLoading(false);
-      return;
-    }
-
     try {
-      const creditEventsRaw = await fetchEvents(selectedCreditCalendarId, forecastStartDate, forecastEndDate);
-      const debitEventsRaw = await fetchEvents(selectedDebitCalendarId, forecastStartDate, forecastEndDate);
+      const [creditEvents, debitEvents] = await Promise.all([
+        fetchEvents(selectedCreditCalendarId),
+        fetchEvents(selectedDebitCalendarId),
+      ]);
 
-      const transactions: Transaction[] = [];
+      const transactions = [
+        ...googleEventsToTransactions(creditEvents, 'credit'),
+        ...googleEventsToTransactions(debitEvents, 'debit'),
+      ].sort((a, b) => a.date.localeCompare(b.date));
 
-      creditEventsRaw.forEach(event => {
-        const parsedDate = parseGoogleDate(event.start?.date);
-        if (parsedDate && (isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime())) {
-          const parsed = parseEventTitle(event.summary);
-          if (parsed) {
-            transactions.push({ date: parsedDate, amount: parsed.amount, description: parsed.description, type: 'credit' });
-          }
-        }
-      });
-
-      debitEventsRaw.forEach(event => {
-        const parsedDate = parseGoogleDate(event.start?.date);
-        if (parsedDate && (isAfter(parsedDate, forecastStartDate) || parsedDate?.getTime() === forecastStartDate.getTime())) {
-          const parsed = parseEventTitle(event.summary);
-          if (parsed) {
-            transactions.push({ date: parsedDate, amount: -parsed.amount, description: parsed.description, type: 'debit' });
-          }
-        }
-      });
-
-      transactions.sort((a, b) => a.date.getTime() - b.date.getTime());
-
-      const newForecast: ForecastEntry[] = [];
-      let currentBalance = numericStartBalance;
-
-      newForecast.push({
-        balance: currentBalance,
-        amount: 0,
-        summary: "Starting Balance",
-        when: forecastStartDate,
-        type: 'initial',
-      });
-
-      transactions.forEach(tx => {
-        currentBalance += tx.amount;
-        newForecast.push({
-          balance: currentBalance,
-          amount: Math.abs(tx.amount),
-          summary: tx.description,
-          when: tx.date,
-          type: tx.type,
-        });
-      });
-
-      newForecast.sort((a, b) => a.when.getTime() - b.when.getTime());
-      setForecast(newForecast);
-
-    } catch (err) {
-      console.error("Error running forecast:", err);
-      setError("An error occurred while generating the forecast.");
+      const rules = detectRecurringRules(transactions);
+      setImportedTransactions(transactions);
+      setRecurringRules(rules);
+      setSuccessMessage(`Loaded ${transactions.length} historical transactions from Google Calendar.`);
+      trackEvent('google_import_completed', { transactions: transactions.length, rules: rules.length });
+    } catch (googleError) {
+      console.error(googleError);
+      setError(googleError instanceof Error ? googleError.message : 'Failed to import from Google.');
     } finally {
       setIsLoading(false);
     }
-  }, [selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance, startFromTomorrow, fetchEvents]);
+  };
 
-  useEffect(() => {
-    if (autoRun) {
-      const timer = setTimeout(() => {
-        if (selectedCreditCalendarId && selectedDebitCalendarId && timespan && startBalance) {
-          runForecast();
-        }
-      }, 500);
-      return () => clearTimeout(timer);
+  const exportRecurringRules = async () => {
+    if (!accessToken) {
+      login();
+      return;
     }
-  }, [autoRun, runForecast, selectedCreditCalendarId, selectedDebitCalendarId, timespan, startBalance]);
+    if (!hasWriteAccess) {
+      const granted = await grantWriteAccess();
+      if (!granted) {
+        return;
+      }
+    }
+    if (!selectedCreditCalendarId || !selectedDebitCalendarId) {
+      setError('Select export calendars for both income and expenses before exporting.');
+      return;
+    }
 
+    setIsLoading(true);
+    setError(null);
+    try {
+      const enabledRules = recurringRules.filter((rule) => rule.enabled);
+      const succeededIds: string[] = [];
+      const failedDetails: Array<{ id: string; label: string; error: string }> = [];
+
+      for (const rule of enabledRules) {
+        const calendarId = rule.direction === 'credit' ? selectedCreditCalendarId : selectedDebitCalendarId;
+        const eventBody = ruleToGoogleEvent(rule);
+
+        try {
+          const response = await fetch(
+            `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events`,
+            {
+              method: 'POST',
+              headers: {
+                Authorization: `Bearer ${accessToken}`,
+                'Content-Type': 'application/json',
+              },
+              body: JSON.stringify(eventBody),
+            },
+          );
+
+          if (response.ok) {
+            succeededIds.push(rule.id);
+          } else {
+            const errorText = await response.text();
+            failedDetails.push({ id: rule.id, label: rule.label, error: errorText || 'Unknown error' });
+            console.error(`Failed to export rule ${rule.label}:`, errorText);
+          }
+        } catch (ruleError) {
+          const errorMessage = ruleError instanceof Error ? ruleError.message : 'Unknown error';
+          failedDetails.push({ id: rule.id, label: rule.label, error: errorMessage });
+          console.error(`Failed to export rule ${rule.label}:`, ruleError);
+        }
+      }
+
+      setSuccessMessage(`Exported ${succeededIds.length} recurring rules to Google Calendar.`);
+      trackEvent('google_export_completed', { successes: succeededIds.length, failures: failedDetails.length });
+
+      if (failedDetails.length > 0) {
+        const failedSummary = failedDetails.map(f => f.label).join(', ');
+        setError(`${failedDetails.length} rule(s) failed to export: ${failedSummary}`);
+      }
+    } catch (exportError) {
+      console.error(exportError);
+      setError(exportError instanceof Error ? exportError.message : 'Google export failed.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
 
   const handleSort = (key: SortKey) => {
-    setSortConfig(current => {
-      if (key !== 'when') {
-        if (current.key !== key) {
-          return {
-            key,
-            direction: 'asc'
-          }
-        }
-
-        if (current.direction === 'desc') {
-          return {
-            key: 'when',
-            direction: 'asc'
-          }
-        }
-
-        return {
-          key,
-          direction: (
-            (current.direction === 'asc')
-              ? 'desc'
-              : 'asc'
-          )
-        }
+    setSortConfig((current) => {
+      if (current.key !== key) {
+        return { key, direction: 'asc' };
       }
-      return {
-        key: 'when',
-        direction: (
-          (current.direction === 'asc')
-            ? 'desc'
-            : 'asc'
-        )
-      }
-    })
+      return { key, direction: current.direction === 'asc' ? 'desc' : 'asc' };
+    });
   };
 
   const filteredForecast = useMemo(() => {
-    if (!searchQuery) return forecast;
     const lowerQuery = searchQuery.toLowerCase();
-    return forecast.filter(item =>
-      item.summary.toLowerCase().includes(lowerQuery) ||
-      item.amount.toString().includes(lowerQuery) ||
-      item.balance.toString().includes(lowerQuery) ||
-      format(item.when, 'yyyy-MM-dd').includes(lowerQuery)
-    );
+    return forecast.filter((entry) => {
+      if (!lowerQuery) return true;
+      return (
+        entry.summary.toLowerCase().includes(lowerQuery) ||
+        entry.amount.toString().includes(lowerQuery) ||
+        entry.balance.toString().includes(lowerQuery) ||
+        format(entry.when, 'yyyy-MM-dd').includes(lowerQuery)
+      );
+    });
   }, [forecast, searchQuery]);
 
   const sortedForecast = useMemo(() => {
     return [...filteredForecast].sort((a, b) => {
       if (!sortConfig.key) {
-        return (a.when.getTime() - b.when.getTime())
+        return a.when.getTime() - b.when.getTime();
       }
-      const directionMultiplier = sortConfig.direction === 'asc' ? 1 : -1;
-
+      const direction = sortConfig.direction === 'desc' ? -1 : 1;
       switch (sortConfig.key) {
         case 'balance':
-          return (a.balance - b.balance) * directionMultiplier;
+          return (a.balance - b.balance) * direction;
         case 'amount':
-          return (((a.type === 'debit' ? -1 : 1) * a.amount) - ((b.type === 'debit' ? -1 : 1) * b.amount)) * directionMultiplier;
+          return (((a.type === 'debit' ? -1 : 1) * a.amount) - ((b.type === 'debit' ? -1 : 1) * b.amount)) * direction;
         case 'summary':
-          return a.summary.localeCompare(b.summary) * directionMultiplier;
+          return a.summary.localeCompare(b.summary) * direction;
         case 'when':
-          return (a.when.getTime() - b.when.getTime()) * directionMultiplier;
+          return (a.when.getTime() - b.when.getTime()) * direction;
         default:
           return 0;
       }
     });
   }, [filteredForecast, sortConfig]);
 
-  const negativeBalanceExists = sortedForecast.some(entry => entry.balance < 0);
+  const lowestPoint = forecast.length > 0 ? lowestBalance(forecast) : null;
+  const negativeCountdown = forecast.length > 0 ? daysUntilNegative(forecast) : null;
 
-  const scrollToNegativeBalance = () => {
-    const firstNegative = sortedForecast.find(entry => entry.balance < 0);
-    if (!firstNegative) return;
-
-    if (viewMode === 'table') {
-      const index = sortedForecast.indexOf(firstNegative);
-      if (index !== -1) {
-        document.getElementById(`row-${index}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    } else {
-      const dateId = `day-${format(firstNegative.when, 'yyyy-MM-dd')}`;
-      document.getElementById(dateId)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    }
+  const updateRule = (ruleId: string, patch: Partial<RecurringRule>) => {
+    trackEvent('recurring_rule_confirmed', { ruleId, patchKeys: Object.keys(patch) });
+    setRecurringRules((current) =>
+      current.map((rule) => (rule.id === ruleId ? { ...rule, ...patch } : rule)),
+    );
   };
 
+  const enabledRuleCount = recurringRules.filter((rule) => rule.enabled).length;
+  const totalEnabledRecurring = recurringRules
+    .filter((rule) => rule.enabled)
+    .reduce((sum, rule) => sum + (rule.direction === 'credit' ? rule.amount : -rule.amount), 0);
+  const oneOffNetTotal = oneOffTransactions.reduce((sum, transaction) => sum + transaction.amount, 0);
+
   return (
-    <div className="container md:w-6xl mx-auto p-4 space-y-6">
-      <div className="flex justify-between items-center">
-        <div className="flex items-center gap-6">
-          <h1 className="text-xl font-bold">Fin Cal</h1>
-          {/* <Link to="/import" className="text-sm font-medium hover:underline text-muted-foreground">
-            Import from Bank
-          </Link> */}
-        </div>
-        <div className="flex items-center gap-4">
-          {userProfile && (
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="cursor-pointer flex items-center gap-2 hover:opacity-80 transition-opacity focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-background focus:ring-ring rounded-md">
-                  <img src={userProfile.picture} alt={userProfile.name} className="w-8 h-8 rounded-full" />
-                  <span className="text-sm">{userProfile.name}</span>
-                </button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuLabel>
-                  <div className="flex flex-col space-y-1">
-                    <p className="text-sm font-medium leading-none">{userProfile.name}</p>
-                    <p className="text-xs leading-none text-muted-foreground">{userProfile.email}</p>
-                  </div>
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  variant="destructive"
-                  className="cursor-pointer"
-                >
-                  <LogOut className="mr-2 h-4 w-4" />
-                  <span>Log out</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
-          )}
-          <ModeToggle />
-        </div>
-      </div>
-
-      {error && (
-        <div className="bg-red-100 text-red-700 border border-red-200 rounded p-3">
-          {error}
-        </div>
-      )}
-
-      <Card>
-        <CardContent className="space-y-6 pt-6">
-          <div className="grid sm:grid-cols-4 gap-4">
-
-            <Accordion type="multiple" defaultValue={["source-settings", "forecast-settings"]} className="col-span-full">
-              <AccordionItem value="source-settings">
-                <AccordionTrigger>Source Settings</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Income Calendar</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              {calendars.find(c => c.id === selectedCreditCalendarId)?.summary || "--"}
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {calendars.map(calendar => (
-                              <DropdownMenuItem key={calendar.id} onClick={() => setSelectedCreditCalendarId(calendar.id)}>
-                                {calendar.summary}
-                              </DropdownMenuItem>
-                            ))}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleCreateCalendar('credit')}>
-                              <Plus className="mr-2 h-4 w-4" /> Create new...
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Expense Calendar</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              {calendars.find(c => c.id === selectedDebitCalendarId)?.summary || "--"}
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            {calendars.map(calendar => (
-                              <DropdownMenuItem key={calendar.id} onClick={() => setSelectedDebitCalendarId(calendar.id)}>
-                                {calendar.summary}
-                              </DropdownMenuItem>
-                            ))}
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem onClick={() => handleCreateCalendar('debit')}>
-                              <Plus className="mr-2 h-4 w-4" /> Create new...
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="forecast-settings">
-                <AccordionTrigger>Forecast Settings</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Starting Balance</InputGroupText>
-                      <InputGroupInput
-                        id="start-balance"
-                        type="number"
-                        className="text-right"
-                        placeholder="Enter starting balance"
-                        value={startBalance}
-                        onChange={(e) => setStartBalance(e.target.value)}
-                      />
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Forecast Duration</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              {timespan === '1M' ? '1 Month' :
-                                timespan === '3M' ? '3 Months' :
-                                  timespan === '6M' ? '6 Months' :
-                                    timespan === '1Y' ? '1 Year' :
-                                      timespan === '2Y' ? '2 Years' : timespan}
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setTimespan("1M")}>1 Month</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTimespan("3M")}>3 Months</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTimespan("6M")}>6 Months</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTimespan("1Y")}>1 Year</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setTimespan("2Y")}>2 Years</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Start of Week</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              {weekStartDay === 0 ? 'Sunday' : 'Monday'}
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setWeekStartDay(0)}>Sunday</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setWeekStartDay(1)}>Monday</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-
-              <AccordionItem value="warning-settings">
-                <AccordionTrigger>Warning Settings</AccordionTrigger>
-                <AccordionContent>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Warning Amount</InputGroupText>
-                      <InputGroupInput
-                        id="warning-amount"
-                        type="number"
-                        className="text-right"
-                        placeholder="Enter amount"
-                        value={warningAmount}
-                        onChange={(e) => setWarningAmount(parseFloat(e.target.value))}
-                      />
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText className="flex-1">Warning Color</InputGroupText>
-                      <InputGroupInput
-                        id="warning-color"
-                        type="color"
-                        className="border-0"
-                        value={warningColor}
-                        onChange={(e) => setWarningColor(e.target.value)}
-                      />
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Warning Condition</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              Balance {warningOperator} Amount
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setWarningOperator('<')}>Below (&lt;)</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setWarningOperator('<=')}>Below or Equal (&le;)</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-
-                    <InputGroup className="flex justify-between">
-                      <InputGroupText>Highlight Style</InputGroupText>
-                      <InputGroupAddon>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <InputGroupButton variant="ghost" className="font-normal">
-                              {warningStyle}
-                              <ChevronDown className="ml-2 h-4 w-4 opacity-50" />
-                            </InputGroupButton>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem onClick={() => setWarningStyle('Row Background')}>Row Background</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setWarningStyle('Text Color')}>Text Color</DropdownMenuItem>
-                            <DropdownMenuItem onClick={() => setWarningStyle('Balance Color')}>Balance Color</DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </InputGroupAddon>
-                    </InputGroup>
-                  </div>
-                </AccordionContent>
-              </AccordionItem>
-            </Accordion>
-
-          </div>
-
-          <div className="flex gap-4 items-end flex-wrap">
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="start-tomorrow"
-                checked={startFromTomorrow}
-                onCheckedChange={(checked) => setStartFromTomorrow(Boolean(checked))}
-              />
-              <Label htmlFor="start-tomorrow">Start Forecast from Tomorrow</Label>
-            </div>
-            <div className="flex items-center gap-2">
-              <Checkbox
-                id="auto-run"
-                checked={autoRun}
-                onCheckedChange={(checked) => setAutoRun(Boolean(checked))}
-              />
-              <Label htmlFor="auto-run">Auto Run</Label>
+    <div className="min-h-screen">
+      <div className="mx-auto max-w-7xl px-4 py-4 md:px-6 md:py-6">
+        <div className="rounded-[2rem] border border-white/50 bg-background/80 shadow-[0_24px_80px_rgba(15,23,42,0.08)] backdrop-blur">
+          <div className="border-b border-border/60 px-5 py-4 md:px-8">
+            <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+              <div>
+                <p className="text-xs uppercase tracking-[0.35em] text-muted-foreground">FinCal</p>
+                <h1 className="mt-2 text-3xl font-semibold tracking-tight md:text-5xl">Forecast your next cash crunch before it happens</h1>
+                <p className="mt-3 max-w-3xl text-sm leading-6 text-muted-foreground md:text-base">
+                  Import CSV or Excel, review the paychecks and bills that repeat, and turn that history into a forward-looking balance view.
+                </p>
+              </div>
+              <div className="flex items-center gap-3">
+            {userProfile ? (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <button className="cursor-pointer flex items-center gap-2 rounded-full border bg-card px-3 py-2 shadow-sm">
+                    <img src={userProfile.picture} alt={userProfile.name} className="h-8 w-8 rounded-full" />
+                    <span className="text-sm">{userProfile.name}</span>
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuLabel>{userProfile.email}</DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={handleLogout}>
+                    <LogOut className="mr-2 h-4 w-4" />
+                    Log out
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            ) : (
+              <Button variant="outline" onClick={login}>Connect Google</Button>
+            )}
+            <ModeToggle />
+              </div>
             </div>
           </div>
-          <div className="flex justify-between items-center w-full">
-            <Button onClick={runForecast} disabled={isLoading} className="flex-1">
-              {isLoading ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Generating Forecast
-                </>
-              ) : (
-                'Run Forecast'
+          <div className="space-y-6 px-5 py-5 md:px-8 md:py-8">
+            <div className="grid gap-4 xl:grid-cols-[1.35fr_0.65fr]">
+              <div className="rounded-[1.75rem] border border-emerald-200/70 bg-[linear-gradient(135deg,rgba(16,185,129,0.14),rgba(34,197,94,0.02))] p-5 shadow-sm">
+                <div className="flex flex-wrap items-center gap-3 text-sm">
+                  <span className="rounded-full bg-emerald-600 px-3 py-1 font-medium text-white">Import-first workflow</span>
+                  <span className="rounded-full border border-emerald-700/15 bg-white/70 px-3 py-1 text-emerald-900 dark:bg-card/40 dark:text-emerald-100">No bank connection required</span>
+                  <span className="rounded-full border border-emerald-700/15 bg-white/70 px-3 py-1 text-emerald-900 dark:bg-card/40 dark:text-emerald-100">Google stays optional</span>
+                </div>
+                <div className="mt-5 grid gap-4 md:grid-cols-3">
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 1</p>
+                    <h2 className="mt-2 text-xl font-semibold">Import history</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Upload a transaction export and match the important columns.</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 2</p>
+                    <h2 className="mt-2 text-xl font-semibold">Tune recurring rules</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Keep the likely paychecks and bills. Turn off the noisy ones.</p>
+                  </div>
+                  <div className="rounded-2xl bg-white/80 p-4 shadow-sm dark:bg-card/60">
+                    <p className="text-xs uppercase tracking-[0.25em] text-muted-foreground">Step 3</p>
+                    <h2 className="mt-2 text-xl font-semibold">See the forecast</h2>
+                    <p className="mt-2 text-sm text-muted-foreground">Look for low points, negative days, and tight timing windows.</p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="rounded-[1.75rem] border border-border/70 bg-card/80 p-5 shadow-sm">
+                <p className="text-xs uppercase tracking-[0.3em] text-muted-foreground">Session Snapshot</p>
+                <div className="mt-4 grid gap-3">
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Imported history</span>
+                    <span className="text-3xl font-semibold">{importedTransactions.length}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Lowest projected balance</span>
+                    <span className="text-xl font-semibold">{lowestPoint ? `$${lowestPoint.balance.toFixed(2)}` : 'Run forecast'}</span>
+                  </div>
+                  <div className="flex items-baseline justify-between rounded-2xl bg-muted/50 px-4 py-3">
+                    <span className="text-sm text-muted-foreground">Days until negative</span>
+                    <span className="text-xl font-semibold">{negativeCountdown === null ? 'Safe' : `${negativeCountdown} days`}</span>
+                  </div>
+                  <div className="rounded-2xl border border-dashed px-4 py-3 text-sm text-muted-foreground">
+                    Session state lives in this browser. You can connect Google later for export or pull from your existing calendars.
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {error && (
+              <div className="rounded-2xl border border-red-200 bg-red-50 px-4 py-3 text-red-700">
+                {error}
+              </div>
+            )}
+            {successMessage && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-emerald-700">
+                {successMessage}
+              </div>
+            )}
+
+            <div className="grid gap-6 lg:grid-cols-[1.28fr_0.72fr]">
+          <Card className="overflow-hidden border-0 shadow-lg">
+            <CardHeader>
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">1</span>
+                Import
+              </div>
+              <CardTitle className="flex items-center gap-2 text-2xl">
+                <Upload className="h-5 w-5" />
+                Import Transactions
+              </CardTitle>
+              <CardDescription>Upload CSV or XLSX, review the detected columns, and turn raw history into forecast-ready recurring items.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-5">
+              <div className="grid gap-4 xl:grid-cols-[0.82fr_1.18fr]">
+                <div className="space-y-4 rounded-[1.5rem] border border-dashed p-4">
+                  <label className="flex cursor-pointer flex-col items-center justify-center gap-3 rounded-[1.25rem] bg-muted/40 px-4 py-12 text-center transition-colors hover:bg-muted/60">
+                    <FileSpreadsheet className="h-8 w-8 text-emerald-700 dark:text-emerald-300" />
+                    <div>
+                      <p className="font-medium">Drop in CSV or Excel</p>
+                      <p className="text-sm text-muted-foreground">Supports `.csv` and `.xlsx` (legacy `.xls` is not supported). Files stay in this browser session and never leave your browser.</p>
+                    </div>
+                    <input
+                      type="file"
+                      accept=".csv,.xlsx"
+                      className="hidden"
+                      onChange={(event) => {
+                        const file = event.target.files?.[0];
+                        if (file) {
+                          void importFromFile(file);
+                        }
+                      }}
+                    />
+                  </label>
+
+                  <div className="space-y-3 rounded-[1.25rem] bg-muted/35 p-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Import progress</span>
+                      <span className="rounded-full bg-background px-3 py-1 text-xs font-medium text-muted-foreground">
+                        {preview ? 'Draft ready' : 'Waiting for file'}
+                      </span>
+                    </div>
+                    <div className="space-y-2">
+                      {[
+                        { label: 'Upload a transaction export', done: Boolean(preview) },
+                        { label: 'Confirm the important columns', done: Boolean(preview && mapping?.dateColumn && mapping?.descriptionColumn && (mapping?.amountColumn || mapping?.creditColumn || mapping?.debitColumn)) },
+                        { label: 'Import and detect recurring rules', done: importedTransactions.length > 0 },
+                      ].map((item, index) => (
+                        <div key={item.label} className="flex items-center gap-3 rounded-xl bg-background/80 px-3 py-2 text-sm shadow-sm">
+                          <span className={`inline-flex h-6 w-6 items-center justify-center rounded-full text-xs font-semibold ${
+                            item.done ? 'bg-emerald-600 text-white' : 'bg-muted text-muted-foreground'
+                          }`}>
+                            {item.done ? '✓' : index + 1}
+                          </span>
+                          <span className={item.done ? 'text-foreground' : 'text-muted-foreground'}>{item.label}</span>
+                        </div>
+                      ))}
+                    </div>
+                    {preview && (
+                      <Button variant="outline" className="w-full rounded-full" onClick={resetImportDraft}>
+                        Clear Import Draft
+                      </Button>
+                    )}
+                  </div>
+                </div>
+
+                <div className="space-y-4">
+                  <div className="grid gap-3 md:grid-cols-3">
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Rows loaded</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.rows.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Headers found</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.headers.length ?? 0}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Import source</p>
+                      <p className="mt-2 text-2xl font-semibold">{preview?.source?.toUpperCase() ?? 'FILE'}</p>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl bg-muted/35 p-4 text-sm text-muted-foreground">
+                    Best results come from exports with a clear `date`, `description`, and either one signed `amount` column or separate `credit` and `debit` columns.
+                  </div>
+                </div>
+              </div>
+
+              {preview && mapping && (
+                <div className="space-y-4">
+                  <div className="flex flex-col gap-3 rounded-2xl bg-muted/40 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Column check</p>
+                      <p className="mt-1 text-sm text-muted-foreground">
+                        FinCal guessed the columns below. Check the core fields before turning this history into recurring rules.
+                      </p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${mapping.dateColumn ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Date</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${mapping.descriptionColumn ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Description</span>
+                      <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${(mapping.amountColumn || mapping.creditColumn || mapping.debitColumn) ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200' : 'bg-amber-100 text-amber-800 dark:bg-amber-500/15 dark:text-amber-200'}`}>Amounts</span>
+                    </div>
+                  </div>
+                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                    {[
+                      ['Date column', 'dateColumn'],
+                      ['Description column', 'descriptionColumn'],
+                      ['Signed amount', 'amountColumn'],
+                      ['Debit column', 'debitColumn'],
+                      ['Credit column', 'creditColumn'],
+                      ['Account column', 'accountColumn'],
+                      ['Category column', 'categoryColumn'],
+                    ].map(([label, key]) => (
+                      <label key={key} className="space-y-2 text-sm">
+                        <span className="font-medium">{label}</span>
+                        <select
+                          value={mappingValue(mapping, key as keyof ImportColumnMapping)}
+                          onChange={(event) =>
+                            setMapping((current) => current ? { ...current, [key]: event.target.value || undefined } : current)
+                          }
+                          className="w-full rounded-md border bg-background px-3 py-2"
+                        >
+                          <option value="">Not used</option>
+                          {preview.headers.map((header) => (
+                            <option key={header} value={header}>{header}</option>
+                          ))}
+                        </select>
+                      </label>
+                    ))}
+                  </div>
+
+                  <div className="flex flex-col gap-3 rounded-2xl border border-border/70 bg-background/70 p-4 md:flex-row md:items-center md:justify-between">
+                    <div>
+                      <p className="font-medium">Ready to find recurring items?</p>
+                      <p className="text-sm text-muted-foreground">
+                        FinCal will clean up {preview.rows.length} rows, flag invalid lines, and surface likely repeating transactions.
+                      </p>
+                    </div>
+                    <Button onClick={completeImport} className="rounded-full px-6">Import And Detect Recurring Rules</Button>
+                  </div>
+
+                  <div className="overflow-hidden rounded-2xl border">
+                    <div className="grid grid-cols-4 gap-2 border-b bg-muted/50 px-3 py-2 text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                      <span>Date</span>
+                      <span>Description</span>
+                      <span>Amount</span>
+                      <span>Account</span>
+                    </div>
+                    <div className="max-h-64 overflow-auto divide-y">
+                      {preview.rows.slice(0, 8).map((row, index) => (
+                        <div key={`${index}-${row[mapping.descriptionColumn ?? ''] ?? index}`} className="grid grid-cols-4 gap-2 px-3 py-2 text-sm">
+                          <span>{mapping.dateColumn ? row[mapping.dateColumn] : ''}</span>
+                          <span className="truncate">{mapping.descriptionColumn ? row[mapping.descriptionColumn] : ''}</span>
+                          <span>{mapping.amountColumn ? row[mapping.amountColumn] : mapping.creditColumn ? `${row[mapping.creditColumn] ?? ''} / ${row[mapping.debitColumn ?? ''] ?? ''}` : ''}</span>
+                          <span className="truncate">{mapping.accountColumn ? row[mapping.accountColumn] : 'n/a'}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
               )}
-            </Button>
-            <div className="ml-4 flex gap-2">
-              <Button size="icon" className="h-10 w-10 shrink-0" onClick={() => handleAddTransaction()}>
-                <Plus className="h-5 w-5" />
-                <span className="sr-only">Add Transaction</span>
+
+              {importIssues.length > 0 && (
+                <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                  <div className="flex items-center gap-2 font-medium text-amber-900">
+                    <AlertCircle className="h-4 w-4" />
+                    Import issues
+                  </div>
+                  <div className="mt-2 space-y-1 text-sm text-amber-800">
+                    {importIssues.slice(0, 8).map((issue) => (
+                      <p key={`${issue.rowNumber}-${issue.message}`}>Row {issue.rowNumber}: {issue.message}</p>
+                    ))}
+                    {importIssues.length > 8 && <p>+{importIssues.length - 8} more rows need attention.</p>}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+
+          <div className="space-y-6">
+            <Card className="overflow-hidden border-0 shadow-lg">
+              <CardHeader>
+                <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                  <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">2</span>
+                  Tune
+                </div>
+                <CardTitle className="text-2xl">Forecast Controls</CardTitle>
+                <CardDescription>Set your starting point, forecast range, and alert behavior. Session data stays in local storage.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast starts</p>
+                    <p className="mt-2 text-lg font-semibold">{forecastStartDate}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast ends</p>
+                    <p className="mt-2 text-lg font-semibold">{forecastEndDate}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Balance baseline</p>
+                  <div className="mt-3">
+                    <InputGroup>
+                      <InputGroupText>Current Balance</InputGroupText>
+                      <InputGroupInput type="number" value={currentBalance} onChange={(event) => setCurrentBalance(event.target.value)} />
+                    </InputGroup>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                    <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Forecast horizon</span>
+                    <select value={timespan} onChange={(event) => setTimespan(event.target.value)} className="w-full rounded-xl border bg-background px-3 py-2">
+                      <option value="30D">30 days</option>
+                      <option value="60D">60 days</option>
+                      <option value="90D">90 days</option>
+                      <option value="180D">180 days</option>
+                      <option value="1Y">1 year</option>
+                    </select>
+                  </label>
+                  <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                    <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Week starts on</span>
+                    <select value={weekStartDay} onChange={(event) => setWeekStartDay(Number(event.target.value) as 0 | 1)} className="w-full rounded-xl border bg-background px-3 py-2">
+                      <option value={0}>Sunday</option>
+                      <option value={1}>Monday</option>
+                    </select>
+                  </label>
+                </div>
+
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <div className="flex items-center justify-between">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Warning behavior</p>
+                    <div className="h-4 w-4 rounded-full border" style={{ backgroundColor: warningColor }} />
+                  </div>
+                  <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning amount</span>
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="number" value={warningAmount} onChange={(event) => setWarningAmount(Number.parseFloat(event.target.value) || 0)} />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning color</span>
+                      <input className="h-10 w-full rounded-xl border bg-background px-2 py-1" type="color" value={warningColor} onChange={(event) => setWarningColor(event.target.value)} />
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Warning condition</span>
+                      <select value={warningOperator} onChange={(event) => setWarningOperator(event.target.value as '<' | '<=')} className="w-full rounded-xl border bg-background px-3 py-2">
+                        <option value="<">Balance below threshold</option>
+                        <option value="<=">Balance at or below threshold</option>
+                      </select>
+                    </label>
+                    <label className="space-y-2 text-sm">
+                      <span className="font-medium">Highlight style</span>
+                      <select value={warningStyle} onChange={(event) => setWarningStyle(event.target.value as WarningStyle)} className="w-full rounded-xl border bg-background px-3 py-2">
+                        <option value="Row Background">Row Background</option>
+                        <option value="Text Color">Text Color</option>
+                        <option value="Balance Color">Balance Color</option>
+                      </select>
+                    </label>
+                  </div>
+                </div>
+
+                <Button className="w-full rounded-full py-6 text-base" onClick={generateLocalForecast} disabled={isLoading}>
+                  {isLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+                  Generate Forecast
+                </Button>
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-0 shadow-lg">
+              <CardHeader>
+                <div className="mb-3 flex items-center justify-between">
+                  <div>
+                    <CardTitle>Manual Adjustments</CardTitle>
+                    <CardDescription>Add one-time future cash events that should affect the forecast.</CardDescription>
+                  </div>
+                  <div className="rounded-full bg-muted/40 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                    {oneOffTransactions.length} item{oneOffTransactions.length === 1 ? '' : 's'}
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
+                <div className="grid gap-3 sm:grid-cols-2">
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Net adjustments</p>
+                    <p className="mt-2 text-xl font-semibold">{formatCurrency(oneOffNetTotal)}</p>
+                  </div>
+                  <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                    <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Latest planned date</p>
+                    <p className="mt-2 text-xl font-semibold">{oneOffTransactions[oneOffTransactions.length - 1]?.date ?? 'None yet'}</p>
+                  </div>
+                </div>
+
+                <div className="rounded-[1.25rem] border border-border/70 bg-muted/15 p-4">
+                  <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Create a one-off adjustment</p>
+                  <div className="mt-4 space-y-3">
+                    <input className="w-full rounded-xl border bg-background px-3 py-2" value={manualDescription} onChange={(event) => setManualDescription(event.target.value)} placeholder="Description" />
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="number" step="0.01" value={manualAmount} onChange={(event) => setManualAmount(event.target.value)} placeholder="Positive income or negative expense" />
+                      <input className="w-full rounded-xl border bg-background px-3 py-2" type="date" value={manualDate} onChange={(event) => setManualDate(event.target.value)} />
+                    </div>
+                    <Button variant="outline" className="w-full rounded-full" onClick={addManualAdjustment}>Add Planned Adjustment</Button>
+                  </div>
+                </div>
+
+                {oneOffTransactions.length > 0 && (
+                  <div className="space-y-2 rounded-2xl border p-3">
+                    {oneOffTransactions.slice(-5).reverse().map((transaction) => (
+                      <div key={transaction.id} className="flex items-center justify-between gap-3 rounded-xl bg-muted/20 px-3 py-2 text-sm">
+                        <div>
+                          <p className="font-medium">{transaction.description}</p>
+                          <p className="text-muted-foreground">{transaction.date}</p>
+                        </div>
+                        <div className="flex items-center gap-3">
+                          <span className={transaction.amount >= 0 ? 'text-emerald-600' : 'text-red-600'}>
+                            {transaction.amount >= 0 ? '+' : '-'}${Math.abs(transaction.amount).toFixed(2)}
+                          </span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => setOneOffTransactions((current) => current.filter((item) => item.id !== transaction.id))}
+                          >
+                            Remove
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            <Card className="overflow-hidden border-0 shadow-lg">
+              <CardHeader>
+                <CardTitle>Optional Google Integration</CardTitle>
+                <CardDescription>Pull from your existing Google calendars or send confirmed recurring rules back out.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {accessToken ? (
+                  <>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Connected account</p>
+                        <p className="mt-2 truncate text-sm font-semibold">{userProfile?.email ?? 'Google connected'}</p>
+                      </div>
+                      <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                        <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Export readiness</p>
+                        <p className="mt-2 text-sm font-semibold">{selectedCreditCalendarId && selectedDebitCalendarId ? 'Calendars selected' : 'Choose calendars below'}</p>
+                      </div>
+                    </div>
+
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                        <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Income calendar</span>
+                        <select className="w-full rounded-xl border bg-background px-3 py-2" value={selectedCreditCalendarId ?? ''} onChange={(event) => setSelectedCreditCalendarId(event.target.value || undefined)}>
+                          <option value="">Select calendar</option>
+                          {calendars.map((calendar) => (
+                            <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
+                          ))}
+                        </select>
+                      </label>
+                      <label className="space-y-2 rounded-[1.25rem] border border-border/70 bg-muted/15 p-4 text-sm">
+                        <span className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Expense calendar</span>
+                        <select className="w-full rounded-xl border bg-background px-3 py-2" value={selectedDebitCalendarId ?? ''} onChange={(event) => setSelectedDebitCalendarId(event.target.value || undefined)}>
+                          <option value="">Select calendar</option>
+                          {calendars.map((calendar) => (
+                            <option key={calendar.id} value={calendar.id}>{calendar.summary}</option>
+                          ))}
+                        </select>
+                      </label>
+                    </div>
+                    <div className="grid gap-3 sm:grid-cols-2">
+                      <Button variant="outline" className="rounded-full" onClick={() => void importFromGoogleCalendars()}>Load History From Google</Button>
+                      <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
+                        Export Enabled Rules To Google
+                      </Button>
+                    </div>
+                  </>
+                ) : (
+                  <div className="rounded-[1.25rem] border border-dashed p-4 text-sm text-muted-foreground">
+                    Connect Google only if you want to import from existing calendars or export confirmed recurring rules.
+                    <Button className="mt-3 w-full rounded-full" variant="outline" onClick={login}>Connect Google</Button>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </div>
+            </div>
+
+            <div className="grid gap-6 lg:grid-cols-[1fr_0.9fr]">
+          <Card className="border-0 shadow-lg">
+            <CardHeader>
+              <div className="mb-3 flex items-center gap-2 text-xs font-medium uppercase tracking-[0.3em] text-muted-foreground">
+                <span className="inline-flex h-7 w-7 items-center justify-center rounded-full bg-foreground text-background">3</span>
+                Confirm
+              </div>
+              <CardTitle className="text-2xl">Recurring Rules</CardTitle>
+              <CardDescription>Review what FinCal thinks repeats. Disable noisy rules and adjust cadence or amount before forecasting.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-3">
+              {recurringRules.length === 0 ? (
+                <div className="rounded-2xl border border-dashed p-5 text-sm text-muted-foreground">Import transaction history first to detect recurring income and expenses.</div>
+              ) : (
+                <>
+                  <div className="grid gap-3 md:grid-cols-[0.9fr_1.1fr_auto]">
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Enabled rules</p>
+                      <p className="mt-2 text-2xl font-semibold">{enabledRuleCount} / {recurringRules.length}</p>
+                    </div>
+                    <div className="rounded-2xl bg-muted/35 px-4 py-3">
+                      <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Net recurring flow</p>
+                      <p className="mt-2 text-2xl font-semibold">{formatCurrency(totalEnabledRecurring)}</p>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Button variant="outline" className="rounded-full" size="sm" onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: true })))}>
+                        Enable all
+                      </Button>
+                      <Button variant="outline" className="rounded-full" size="sm" onClick={() => setRecurringRules((current) => current.map((rule) => ({ ...rule, enabled: false })))}>
+                        Disable all
+                      </Button>
+                    </div>
+                  </div>
+
+                  {recurringRules.map((rule) => (
+                    <div
+                      key={rule.id}
+                      className={`rounded-[1.4rem] border p-4 transition-colors ${
+                        rule.enabled
+                          ? 'border-emerald-200/70 bg-[linear-gradient(180deg,rgba(16,185,129,0.06),rgba(255,255,255,0))]'
+                          : 'border-border/70 bg-muted/15 opacity-85'
+                      }`}
+                    >
+                      <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                        <div className="min-w-0 flex-1 space-y-3">
+                          <div className="flex flex-wrap items-center gap-3">
+                            <label className="inline-flex items-center gap-2 rounded-full border bg-background px-3 py-2 shadow-sm">
+                              <input type="checkbox" checked={rule.enabled} onChange={(event) => updateRule(rule.id, { enabled: event.target.checked })} />
+                              <span className="text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                                {rule.enabled ? 'Included' : 'Ignored'}
+                              </span>
+                            </label>
+                            <span className={`rounded-full px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] ${
+                              rule.direction === 'credit'
+                                ? 'bg-emerald-100 text-emerald-800 dark:bg-emerald-500/15 dark:text-emerald-200'
+                                : 'bg-red-100 text-red-800 dark:bg-red-500/15 dark:text-red-200'
+                            }`}>
+                              {rule.direction === 'credit' ? 'Income' : 'Expense'}
+                            </span>
+                            <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                              {cadenceLabel(rule.cadence)}
+                            </span>
+                            <span className="rounded-full bg-background px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-muted-foreground">
+                              {confidenceLabel(rule.confidence)} confidence
+                            </span>
+                          </div>
+
+                          <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+                            <div className="min-w-0 flex-1">
+                              <input
+                                className="w-full rounded-xl border bg-background px-4 py-3 text-lg font-semibold shadow-sm"
+                                value={rule.label}
+                                onChange={(event) => updateRule(rule.id, { label: event.target.value })}
+                              />
+                              <p className="mt-2 text-sm text-muted-foreground">
+                                Based on {rule.sourceTransactionIds.length} matching transactions. Anchor date starts at <span className="font-medium text-foreground">{rule.anchorDate}</span>.
+                              </p>
+                            </div>
+                            <div className="rounded-2xl bg-background/80 px-4 py-3 text-right shadow-sm">
+                              <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Amount</p>
+                              <p className={rule.direction === 'credit' ? 'mt-2 text-2xl font-semibold text-emerald-700 dark:text-emerald-300' : 'mt-2 text-2xl font-semibold text-red-700 dark:text-red-300'}>
+                                {rule.direction === 'credit' ? '+' : '-'}{formatCurrency(rule.amount)}
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        <div className="grid gap-3 rounded-2xl border border-border/70 bg-background/80 p-3 shadow-sm sm:grid-cols-3 lg:w-[420px]">
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Amount</span>
+                            <input
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              type="number"
+                              step="0.01"
+                              value={rule.amount}
+                              onChange={(event) => updateRule(rule.id, { amount: Number.parseFloat(event.target.value) || 0 })}
+                            />
+                          </label>
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Direction</span>
+                            <select
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              value={rule.direction}
+                              onChange={(event) => updateRule(rule.id, { direction: event.target.value as 'credit' | 'debit' })}
+                            >
+                              <option value="credit">Income</option>
+                              <option value="debit">Expense</option>
+                            </select>
+                          </label>
+                          <label className="space-y-2 text-sm">
+                            <span className="font-medium text-muted-foreground">Cadence</span>
+                            <select
+                              className="w-full rounded-xl border bg-background px-3 py-2"
+                              value={rule.cadence}
+                              onChange={(event) => updateRule(rule.id, { cadence: event.target.value as RecurringCadence })}
+                            >
+                              {cadenceOptions().map((cadence) => (
+                                <option key={cadence} value={cadence}>{cadenceLabel(cadence)}</option>
+                              ))}
+                            </select>
+                          </label>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+            </CardContent>
+          </Card>
+
+            </div>
+
+            <div className="rounded-[1.75rem] border border-border/70 bg-card/80 p-4 shadow-sm md:p-5">
+        <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+          <div className="flex items-center gap-2">
+            <ButtonGroup>
+              <Button variant={viewMode === 'table' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('table')}>
+                <LayoutGrid className="mr-2 h-4 w-4" />
+                Table
               </Button>
-              <AddTransactionDialog
-                selectedCreditCalendarId={selectedCreditCalendarId}
-                selectedDebitCalendarId={selectedDebitCalendarId}
-                accessToken={accessToken}
-                onTransactionAdded={() => {
-                  if (autoRun) runForecast();
-                }}
-                handleLogout={handleLogout}
-                hasWriteAccess={hasWriteAccess}
-                grantWriteAccess={grantWriteAccess}
-                open={isAddTransactionOpen}
-                onOpenChange={setIsAddTransactionOpen}
-                defaultDate={addTransactionDefaults.date}
-                defaultType={addTransactionDefaults.type}
-              />
+              <Button variant={viewMode === 'calendar' ? 'default' : 'outline'} size="sm" onClick={() => setViewMode('calendar')}>
+                <CalendarIcon className="mr-2 h-4 w-4" />
+                Calendar
+              </Button>
+            </ButtonGroup>
+          </div>
+          <div className="w-full md:max-w-md">
+            <InputGroup>
+              <InputGroupInput value={searchQuery} onChange={(event) => setSearchQuery(event.target.value)} placeholder="Search forecast..." />
+              <InputGroupAddon>
+                <Search className="h-4 w-4" />
+              </InputGroupAddon>
+              <InputGroupAddon align="inline-end">{filteredForecast.length} results</InputGroupAddon>
+            </InputGroup>
+          </div>
+        </div>
+
+        <div className="mt-5">
+        {viewMode === 'table' ? (
+          <ForecastTable
+            sortedForecast={sortedForecast}
+            handleSort={handleSort}
+            sortConfig={sortConfig}
+            onAddTransaction={() => undefined}
+            warningAmount={warningAmount}
+            warningColor={warningColor}
+            warningOperator={warningOperator}
+            warningStyle={warningStyle}
+            enableQuickActions={false}
+            onOpenExternalDate={accessToken ? (date) => window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank') : undefined}
+          />
+        ) : (
+          <ForecastCalendar
+            forecast={sortedForecast}
+            weekStartDay={weekStartDay}
+            startDate={forecast.length > 0 ? forecast[0].when : new Date()}
+            endDate={defaultForecastEndDate(startOfDay(addDays(new Date(), 1)), timespan)}
+            onAddTransaction={() => undefined}
+            warningAmount={warningAmount}
+            warningColor={warningColor}
+            warningOperator={warningOperator}
+            warningStyle={warningStyle}
+            enableQuickActions={false}
+            onOpenExternalDate={accessToken ? (date) => window.open(`https://calendar.google.com/calendar/u/0/r/day/${format(date, 'yyyy')}/${format(date, 'MM')}/${format(date, 'dd')}`, '_blank') : undefined}
+          />
+        )}
+        </div>
             </div>
           </div>
-        </CardContent>
-      </Card>
-
-      <div className="flex justify-between gap-2">
-        <ButtonGroup>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={!negativeBalanceExists}
-            onClick={() => scrollToNegativeBalance()}
-          >
-            Scroll to negative balance
-          </Button>
-        </ButtonGroup>
-        <ButtonGroup>
-          <Button
-            variant={viewMode === 'table' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('table')}
-          >
-            <LayoutGrid className="w-4 h-4 mr-2" />
-            Table
-          </Button>
-          <Button
-            variant={viewMode === 'calendar' ? 'default' : 'outline'}
-            size="sm"
-            onClick={() => setViewMode('calendar')}
-          >
-            <CalendarIcon className="w-4 h-4 mr-2" />
-            Calendar
-          </Button></ButtonGroup>
+        </div>
       </div>
-
-      <div className="flex items-center py-4">
-        <InputGroup>
-          <InputGroupInput
-            placeholder="Search..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-          <InputGroupAddon>
-            <Search className="h-4 w-4" />
-          </InputGroupAddon>
-          <InputGroupAddon align="inline-end">{filteredForecast.length} results</InputGroupAddon>
-        </InputGroup>
-      </div>
-
-
-      {viewMode === 'table' ? (
-        <ForecastTable
-          sortedForecast={sortedForecast}
-          handleSort={handleSort}
-          sortConfig={sortConfig}
-          onAddTransaction={handleAddTransaction}
-          warningAmount={warningAmount}
-          warningColor={warningColor}
-          warningOperator={warningOperator}
-          warningStyle={warningStyle}
-        />
-      ) : (
-        <ForecastCalendar
-          forecast={filteredForecast}
-          weekStartDay={weekStartDay}
-          startDate={sortedForecast.length > 0 ? sortedForecast[0].when : new Date()}
-          endDate={(() => {
-            const start = startFromTomorrow ? startOfDay(addDays(new Date(), 1)) : startOfDay(new Date());
-            switch (timespan) {
-              case '1M': return addMonths(start, 1);
-              case '3M': return addMonths(start, 3);
-              case '6M': return addMonths(start, 6);
-              case '1Y': return addYears(start, 1);
-              case '2Y': return addYears(start, 2);
-              default: return addMonths(start, 1);
-            }
-          })()}
-          onAddTransaction={handleAddTransaction}
-          warningAmount={warningAmount}
-          warningColor={warningColor}
-          warningOperator={warningOperator}
-          warningStyle={warningStyle}
-        />
-      )}
     </div>
   );
 }
