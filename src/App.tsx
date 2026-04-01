@@ -83,12 +83,12 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
 
             if (response.ok) {
               // Token is valid, restore session
+              const data = await response.json();
               setAccessToken(storedToken);
               setUserProfile(profile);
               setIsSignedIn(true);
-              
+
               // Check scopes from the tokeninfo response
-              const data = await response.json();
               if (data.scope) {
                 const scopes = data.scope.split(' ');
                 const hasCalendar = scopes.includes('https://www.googleapis.com/auth/calendar');

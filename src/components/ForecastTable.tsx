@@ -105,17 +105,18 @@ export function ForecastTable({
                 </TableCell>
               </TableRow>
             )}
-            {sortedForecast.map((entry, index) => {
+            {sortedForecast.map((entry) => {
               const isWarning = warningOperator === '<' ? entry.balance < warningAmount : entry.balance <= warningAmount;
               const rowStyle = isWarning ? {
                 backgroundColor: warningStyle === 'Row Background' ? warningColor : undefined,
                 color: warningStyle === 'Text Color' ? warningColor : undefined,
               } : undefined;
+              const uniqueId = `${format(entry.when, 'yyyy-MM-dd')}-${entry.summary}-${entry.amount}`;
 
               return (
                 <TableRow
-                  key={index}
-                  id={`row-${index}`}
+                  key={uniqueId}
+                  id={`row-${uniqueId}`}
                   style={rowStyle}
                   className={cn(
                     'border-border/60 transition-colors hover:bg-muted/30',

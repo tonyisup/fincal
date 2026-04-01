@@ -123,6 +123,7 @@
   }
   body {
     @apply bg-background text-foreground;
+
     background-image:
       radial-gradient(circle at top left, color-mix(in oklab, var(--color-chart-2) 16%, transparent) 0%, transparent 34%),
       radial-gradient(circle at top right, color-mix(in oklab, var(--color-chart-4) 12%, transparent) 0%, transparent 28%),
@@ -135,7 +136,11 @@
     letter-spacing: -0.02em;
   }
   ::selection {
-    background: color-mix(in oklab, var(--color-chart-2) 40%, white);
+    background: color-mix(in oklab, var(--color-chart-2) 40%, var(--background));
+    color: var(--foreground);
+  }
+  .dark ::selection {
+    background: color-mix(in oklab, var(--color-chart-2) 40%, var(--background));
     color: var(--foreground);
   }
 }

@@ -99,27 +99,49 @@ export function ImportPage() {
     setSuccessMessage('Cleared the current import draft.');
   };
 
-  const fetchEvents = useCallback(async (calendarId: string): Promise<CalendarEvent[]> => {
+  const fetchEvents = useCallback(async (
+    calendarId: string,
+    options?: { timeMin?: string; timeMax?: string }
+  ): Promise<CalendarEvent[]> => {
     if (!accessToken) return [];
-    const params = new URLSearchParams({
-      timeMin: new Date('2025-01-01').toISOString(),
-      timeMax: new Date().toISOString(),
-      singleEvents: 'true',
-      orderBy: 'startTime',
-      maxResults: '250',
-    });
 
-    const response = await fetch(
-      `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
-      {
-        headers: { Authorization: `Bearer ${accessToken}` },
-      },
-    );
-    if (!response.ok) {
-      throw new Error('Failed to load Google Calendar events.');
-    }
-    const data = await response.json();
-    return data.items ?? [];
+    const now = new Date();
+    const oneYearAgo = new Date(now);
+    oneYearAgo.setFullYear(now.getFullYear() - 1);
+
+    const timeMin = options?.timeMin || oneYearAgo.toISOString();
+    const timeMax = options?.timeMax || now.toISOString();
+
+    const allEvents: CalendarEvent[] = [];
+    let pageToken: string | undefined = undefined;
+
+    do {
+      const params = new URLSearchParams({
+        timeMin,
+        timeMax,
+        singleEvents: 'true',
+        orderBy: 'startTime',
+      });
+
+      if (pageToken) {
+        params.set('pageToken', pageToken);
+      }
+
+      const response = await fetch(
+        `https://www.googleapis.com/calendar/v3/calendars/${encodeURIComponent(calendarId)}/events?${params.toString()}`,
+        {
+          headers: { Authorization: `Bearer ${accessToken}` },
+        },
+      );
+      if (!response.ok) {
+        throw new Error('Failed to load Google Calendar events.');
+      }
+      const data = await response.json();
+      allEvents.push(...(data.items ?? []));
+      pageToken = data.nextPageToken;
+    } while (pageToken);
+
+    return allEvents;
   }, [accessToken]);
 
   const importFromGoogleCalendars = async () => {
@@ -410,7 +432,7 @@ export function ImportPage() {
                   </label>
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
-                  <Button variant="outline" className="rounded-full" onClick={importFromGoogleCalendars}>Load History From Google</Button>
+                  <Button variant="outline" className="rounded-full" onClick={() => void importFromGoogleCalendars()}>Load History From Google</Button>
                   <Button variant="outline" className="rounded-full" onClick={() => void exportRecurringRules()}>
                     Export Enabled Rules To Google
                   </Button>

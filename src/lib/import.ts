@@ -43,7 +43,7 @@ function parseDateValue(value: string) {
     return format(directIso, 'yyyy-MM-dd');
   }
 
-  const candidates = ['M/d/yyyy', 'MM/dd/yyyy', 'M/d/yy', 'MM/dd/yy', 'yyyy-MM-dd'];
+  const candidates = ['M/d/yyyy', 'MM/dd/yyyy', 'yyyy-MM-dd'];
   for (const candidate of candidates) {
     const parsed = parse(trimmed, candidate, new Date());
     if (isValid(parsed)) {
@@ -69,16 +69,32 @@ function parseAmountValue(value: string | undefined) {
 }
 
 export async function parseImportFile(file: File): Promise<ImportPreview> {
-  const XLSX = await import('xlsx');
+  const ExcelJS = await import('exceljs');
   const buffer = await file.arrayBuffer();
-  const workbook = XLSX.read(buffer, { type: 'array', raw: false });
-  const sheetName = workbook.SheetNames[0];
-  const sheet = workbook.Sheets[sheetName];
-  const matrix = XLSX.utils.sheet_to_json<(string | number | null)[]>(sheet, {
-    header: 1,
-    raw: false,
-    defval: '',
-    blankrows: false,
+  const workbook = new ExcelJS.Workbook();
+  await workbook.xlsx.load(buffer);
+
+  const worksheet = workbook.worksheets[0];
+  if (!worksheet) {
+    throw new Error('No worksheet found in the file.');
+  }
+
+  const matrix: (string | number | null)[][] = [];
+  worksheet.eachRow((row) => {
+    const rowData: (string | number | null)[] = [];
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      const value = cell.value;
+      if (value === null || value === undefined) {
+        rowData.push('');
+      } else if (typeof value === 'object' && 'text' in value) {
+        rowData.push(String(value.text));
+      } else if (typeof value === 'object' && 'result' in value) {
+        rowData.push(String(value.result));
+      } else {
+        rowData.push(value as string | number);
+      }
+    });
+    matrix.push(rowData);
   });
 
   if (matrix.length < 2) {
@@ -123,6 +139,7 @@ export function normalizeImportedTransactions(
 ): { transactions: NormalizedTransaction[]; issues: ImportIssue[] } {
   const transactions: NormalizedTransaction[] = [];
   const issues: ImportIssue[] = [];
+  const importSessionId = Date.now().toString();
 
   rows.forEach((row, index) => {
     const rowNumber = index + 2;
@@ -155,7 +172,7 @@ export function normalizeImportedTransactions(
     }
 
     transactions.push({
-      id: `${source}-${index}-${parsedDate}-${description}`,
+      id: `${source}-${importSessionId}-${index}-${parsedDate}-${description}`,
       source,
       date: parsedDate,
       description,

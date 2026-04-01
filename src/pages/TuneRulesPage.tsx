@@ -155,10 +155,10 @@ export function TuneRulesPage() {
                       <div className="space-y-2">
                         <Label className="text-[10px] uppercase tracking-widest text-muted-foreground">Type</Label>
                         <div className="flex gap-2">
-                          {['all', 'credit', 'debit'].map((d) => (
+                          {(['all', 'credit', 'debit'] as const).map((d: 'all' | 'credit' | 'debit') => (
                             <button
                               key={d}
-                              onClick={() => setFilterDirection(d as any)}
+                              onClick={() => setFilterDirection(d)}
                               className={`flex-1 rounded-md py-1 text-[10px] font-medium border transition-all ${filterDirection === d
                                   ? 'bg-emerald-500/15 border-emerald-500/40 text-emerald-600 dark:text-emerald-400'
                                   : 'border-border/50 hover:bg-muted text-muted-foreground'

@@ -167,9 +167,9 @@ export function AddTransactionDialog({
       onTransactionAdded();
     } catch (err: unknown) {
       console.error("Error creating transaction:", err);
-      const message = err instanceof Error ? err.message : 'Unknown error';
+      const message = (err as any)?.message || String(err);
       setError(`Failed to create transaction: ${message}`);
-      if (typeof err === 'object' && err !== null && 'status' in err && err.status === 401) {
+      if ((err as any)?.status === 401) {
         handleLogout();
       }
     } finally {

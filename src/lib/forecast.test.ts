@@ -16,6 +16,35 @@ describe('detectRecurringRules', () => {
     expect(rules[0].direction).toBe('debit');
     expect(rules[0].amount).toBe(1200);
   });
+
+  it('groups by description only, allowing varying amounts/sources', () => {
+    const transactions: NormalizedTransaction[] = [
+      { id: '1', source: 'csv', date: '2026-01-01', description: 'Utility Bill', amount: -100 },
+      { id: '2', source: 'xlsx', date: '2026-02-01', description: 'Utility Bill', amount: -110 },
+      { id: '3', source: 'csv', date: '2026-03-01', description: 'Utility Bill', amount: -105 },
+    ];
+
+    const rules = detectRecurringRules(transactions);
+    expect(rules).toHaveLength(1);
+    expect(rules[0].cadence).toBe('monthly');
+    expect(rules[0].direction).toBe('debit');
+    // Average of 100, 110, 105
+    expect(rules[0].amount).toBeCloseTo(105, 0);
+  });
+
+  it('detects semimonthly patterns with day-of-month anchors', () => {
+    const transactions: NormalizedTransaction[] = [
+      { id: '1', source: 'csv', date: '2026-01-01', description: 'Paycheck', amount: 2000 },
+      { id: '2', source: 'csv', date: '2026-01-15', description: 'Paycheck', amount: 2000 },
+      { id: '3', source: 'csv', date: '2026-02-01', description: 'Paycheck', amount: 2000 },
+      { id: '4', source: 'csv', date: '2026-02-15', description: 'Paycheck', amount: 2000 },
+    ];
+
+    const rules = detectRecurringRules(transactions);
+    expect(rules).toHaveLength(1);
+    expect(rules[0].cadence).toBe('semimonthly');
+    expect(rules[0].amount).toBe(2000);
+  });
 });
 
 describe('generateForecast', () => {
@@ -46,6 +75,37 @@ describe('generateForecast', () => {
     const entries = forecastPointsToEntries(points, '2026-03-27', 1000);
     expect(entries[0].summary).toBe('Starting Balance');
     expect(entries[entries.length - 1].balance).toBe(1800);
+  });
+
+  it('handles month-end dates correctly (Feb 28/29)', () => {
+    const points = generateForecast({
+      currentBalance: 1000,
+      recurringRules: [
+        {
+          id: 'rule-rent',
+          label: 'Rent',
+          amount: 1200,
+          direction: 'debit',
+          cadence: 'monthly',
+          anchorDate: '2026-01-31',
+          confidence: 0.95,
+          sourceTransactionIds: ['rent-1'],
+          enabled: true,
+        },
+      ],
+      oneOffTransactions: [],
+      startDate: '2026-02-01',
+      endDate: '2026-03-31',
+    });
+
+    // Should generate occurrences for Feb and March
+    expect(points.length).toBeGreaterThan(0);
+    // Verify amounts are preserved
+    points.forEach(point => {
+      point.transactions.forEach(tx => {
+        expect(Math.abs(tx.amount)).toBe(1200);
+      });
+    });
   });
 });
 

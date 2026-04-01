@@ -113,15 +113,34 @@ export function MainApp({
   grantWriteAccess,
   login,
 }: MainAppProps) {
-  const session = loadSession();
-
-  const [currentBalance, setCurrentBalance] = useState(session?.currentBalance ?? '4000');
-  const [timespan, setTimespan] = useState(session?.timespan ?? '90D');
-  const [weekStartDay, setWeekStartDay] = useState<0 | 1>(session?.weekStartDay ?? 0);
-  const [warningAmount, setWarningAmount] = useState<number>(session?.warningAmount ?? 0);
-  const [warningColor, setWarningColor] = useState<string>(session?.warningColor ?? '#b45309');
-  const [warningOperator, setWarningOperator] = useState<'<' | '<='>(session?.warningOperator ?? '<');
-  const [warningStyle, setWarningStyle] = useState<WarningStyle>(session?.warningStyle ?? 'Balance Color');
+  const [currentBalance, setCurrentBalance] = useState(() => {
+    const session = loadSession();
+    return session?.currentBalance ?? '4000';
+  });
+  const [timespan, setTimespan] = useState(() => {
+    const session = loadSession();
+    return session?.timespan ?? '90D';
+  });
+  const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
+    const session = loadSession();
+    return session?.weekStartDay ?? 0;
+  });
+  const [warningAmount, setWarningAmount] = useState<number>(() => {
+    const session = loadSession();
+    return session?.warningAmount ?? 0;
+  });
+  const [warningColor, setWarningColor] = useState<string>(() => {
+    const session = loadSession();
+    return session?.warningColor ?? '#b45309';
+  });
+  const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
+    const session = loadSession();
+    return session?.warningOperator ?? '<';
+  });
+  const [warningStyle, setWarningStyle] = useState<WarningStyle>(() => {
+    const session = loadSession();
+    return session?.warningStyle ?? 'Balance Color';
+  });
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('calendar');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortConfig, setSortConfig] = useState<{ key: SortKey; direction: SortDirection }>({ key: null, direction: null });
@@ -129,12 +148,27 @@ export function MainApp({
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [preview, setPreview] = useState<ImportPreview | null>(session?.preview ?? null);
-  const [mapping, setMapping] = useState<ImportColumnMapping | null>(session?.mapping ?? null);
+  const [preview, setPreview] = useState<ImportPreview | null>(() => {
+    const session = loadSession();
+    return session?.preview ?? null;
+  });
+  const [mapping, setMapping] = useState<ImportColumnMapping | null>(() => {
+    const session = loadSession();
+    return session?.mapping ?? null;
+  });
   const [importIssues, setImportIssues] = useState<ImportIssue[]>([]);
-  const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(session?.importedTransactions ?? []);
-  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(session?.recurringRules ?? []);
-  const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(session?.oneOffTransactions ?? []);
+  const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.importedTransactions ?? [];
+  });
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => {
+    const session = loadSession();
+    return session?.recurringRules ?? [];
+  });
+  const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.oneOffTransactions ?? [];
+  });
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
 
   const [manualDescription, setManualDescription] = useState('');
@@ -142,8 +176,14 @@ export function MainApp({
   const [manualDate, setManualDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
 
   const [calendars, setCalendars] = useState<Calendar[]>([]);
-  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(session?.selectedCreditCalendarId);
-  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(session?.selectedDebitCalendarId);
+  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedCreditCalendarId;
+  });
+  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedDebitCalendarId;
+  });
 
   useEffect(() => {
     trackEvent('return_usage', { signedIn: Boolean(accessToken) });
@@ -866,7 +906,7 @@ export function MainApp({
                   </div>
                   <div className="rounded-2xl bg-muted/35 px-4 py-3">
                     <p className="text-xs uppercase tracking-[0.24em] text-muted-foreground">Latest planned date</p>
-                    <p className="mt-2 text-xl font-semibold">{oneOffTransactions.at(-1)?.date ?? 'None yet'}</p>
+                    <p className="mt-2 text-xl font-semibold">{oneOffTransactions[oneOffTransactions.length - 1]?.date ?? 'None yet'}</p>
                   </div>
                 </div>
 

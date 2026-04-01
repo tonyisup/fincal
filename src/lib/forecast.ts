@@ -72,8 +72,11 @@ export function detectRecurringRules(transactions: NormalizedTransaction[]): Rec
   const groups = new Map<string, NormalizedTransaction[]>();
 
   transactions.forEach((transaction) => {
-    const key = normalizeDescription(transaction.description);
-    if (!key) return;
+    const normalizedDesc = normalizeDescription(transaction.description);
+    if (!normalizedDesc) return;
+    const direction = Math.sign(transaction.amount) >= 0 ? 'credit' : 'debit';
+    const account = transaction.accountName || '';
+    const key = `${normalizedDesc}|${direction}|${account}`;
     const current = groups.get(key) ?? [];
     current.push(transaction);
     groups.set(key, current);

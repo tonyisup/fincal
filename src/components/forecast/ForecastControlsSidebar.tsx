@@ -29,7 +29,7 @@ export function ForecastControlsSidebar() {
   } = useForecastContext();
 
   const [controlsExpanded, setControlsExpanded] = useState(true);
-  const [warningBehavriorExpanded, setWarningBehavriorExpanded] = useState(true);
+  const [warningBehaviorExpanded, setWarningBehaviorExpanded] = useState(true);
   const [adjustmentsExpanded, setAdjustmentsExpanded] = useState(true);
 
   const oneOffNetTotal = oneOffTransactions.reduce((sum, tx) => sum + tx.amount, 0);
@@ -38,15 +38,17 @@ export function ForecastControlsSidebar() {
     <div className="flex h-full w-[340px] flex-col overflow-y-auto border-r border-border/40 bg-card/60 px-4 py-5 shadow-sm scrollbar-hide">
 
       {/* Forecast Controls Collapse Panel Header */}
-      <div
-        className="flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+      <button
+        className="flex w-full cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground bg-transparent border-none appearance-none"
         onClick={() => setControlsExpanded(!controlsExpanded)}
+        aria-expanded={controlsExpanded}
+        aria-controls="forecast-controls-panel"
       >
         <span>Forecast Controls</span>
         <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${controlsExpanded ? 'rotate-0' : '-rotate-90'}`} />
-      </div>
+      </button>
 
-      <div className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${controlsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+      <div id="forecast-controls-panel" className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${controlsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
 
         {/* Dates */}
         <div className="pt-4 space-y-3">
@@ -122,15 +124,17 @@ export function ForecastControlsSidebar() {
       <hr className="my-4 border-border/40" />
 
       {/* Warnings Behavior Controls Collapse Panel Header */}
-      <div
-        className="flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
-        onClick={() => setWarningBehavriorExpanded(!warningBehavriorExpanded)}
+      <button
+        className="flex w-full cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground bg-transparent border-none appearance-none"
+        onClick={() => setWarningBehaviorExpanded(!warningBehaviorExpanded)}
+        aria-expanded={warningBehaviorExpanded}
+        aria-controls="warnings-behavior-panel"
       >
         <span>Warnings Behavior</span>
-        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${warningBehavriorExpanded ? 'rotate-0' : '-rotate-90'}`} />
-      </div>
+        <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${warningBehaviorExpanded ? 'rotate-0' : '-rotate-90'}`} />
+      </button>
 
-      <div className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${warningBehavriorExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+      <div id="warnings-behavior-panel" className={`space-y-5 transition-all duration-300 ease-in-out overflow-hidden ${warningBehaviorExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
         {/* Warning Behavior */}
         <div className="pt-4 space-y-4">
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
@@ -167,7 +171,10 @@ export function ForecastControlsSidebar() {
             <select
               className="w-[120px] rounded border bg-background/50 px-2 py-1 outline-none text-xs"
               value={warningStyle}
-              onChange={(e) => setWarningStyle(e.target.value as any)}
+              onChange={(e: React.ChangeEvent<HTMLSelectElement>) => {
+                const value = e.target.value as 'Text Color' | 'Row Background' | 'Balance Color';
+                setWarningStyle(value);
+              }}
             >
               <option value="Text Color">Text Color</option>
               <option value="Row Background">Row Background</option>
@@ -181,15 +188,17 @@ export function ForecastControlsSidebar() {
       <hr className="my-4 border-border/40" />
 
       <div>
-        <div
-          className="mb-4 flex cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground"
+        <button
+          className="mb-4 flex w-full cursor-pointer items-center justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground transition-colors hover:text-foreground bg-transparent border-none appearance-none"
           onClick={() => setAdjustmentsExpanded(!adjustmentsExpanded)}
+          aria-expanded={adjustmentsExpanded}
+          aria-controls="manual-adjustments-panel"
         >
           <span>Manual Adjustments</span>
           <ChevronDown className={`h-4 w-4 transition-transform duration-200 ${adjustmentsExpanded ? 'rotate-0' : '-rotate-90'}`} />
-        </div>
+        </button>
 
-        <div className={`space-y-4 transition-all duration-300 ease-in-out overflow-hidden ${adjustmentsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
+        <div id="manual-adjustments-panel" className={`space-y-4 transition-all duration-300 ease-in-out overflow-hidden ${adjustmentsExpanded ? 'max-h-[1000px] opacity-100' : 'max-h-0 opacity-0'}`}>
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Net Adjustments</span>
             <span className={oneOffNetTotal < 0 ? 'text-red-500 font-medium' : oneOffNetTotal > 0 ? 'text-emerald-500 font-medium' : 'text-foreground font-medium'}>
@@ -199,9 +208,14 @@ export function ForecastControlsSidebar() {
           <div className="flex justify-between text-sm">
             <span className="text-muted-foreground">Latest Planned Date</span>
             <span className="font-medium">
-              {oneOffTransactions.length > 0
-                ? format(new Date(oneOffTransactions[oneOffTransactions.length - 1].date), 'MMM d, yyyy')
-                : 'None yet'}
+              {(() => {
+                if (oneOffTransactions.length === 0) return 'None yet';
+                const latestDate = oneOffTransactions.reduce((latest, tx) => {
+                  const txDate = new Date(tx.date);
+                  return txDate > latest ? txDate : latest;
+                }, new Date(oneOffTransactions[0].date));
+                return format(latestDate, 'MMM d, yyyy');
+              })()}
             </span>
           </div>
 

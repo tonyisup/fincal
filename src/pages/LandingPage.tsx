@@ -54,7 +54,7 @@ export function LandingPage({ signIn }: LandingPageProps) {
             <div className="flex flex-col items-center justify-center space-y-4 text-center">
               <div className="inline-block rounded-lg bg-muted px-3 py-1 text-sm">Key Features</div>
               <h2 className="text-3xl font-bold tracking-tighter sm:text-5xl">A simpler way to plan the next few pay cycles</h2>
-              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text/base/relaxed xl:text-xl/relaxed">
+              <p className="max-w-[900px] text-muted-foreground md:text-xl/relaxed lg:text-base/relaxed xl:text-xl/relaxed">
                 Import your history, confirm what repeats, and see where your balance is headed.
               </p>
             </div>

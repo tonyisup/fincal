@@ -528,7 +528,7 @@ function DayCell({
       className={cn(
         "border-r border-border/50 min-h-[132px] p-3 flex flex-col justify-between relative group transition-colors",
         isToday && "bg-cyan-500/10",
-        (format(day, 'd') == '1') && "bg-amber-500/10",
+        (format(day, 'd') === '1') && "bg-amber-500/10",
         transactions.length > 0 && "hover:bg-muted/20"
       )}
       style={{
@@ -547,7 +547,7 @@ function DayCell({
         >
           {format(day, 'd')}
         </span>
-        <span className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{(format(day, 'd') == '1') && format(day, 'MMM')}</span>
+        <span className="text-[10px] uppercase tracking-[0.24em] text-muted-foreground">{(format(day, 'd') === '1') && format(day, 'MMM')}</span>
       </div>
 
       {/* Hover Buttons */}
@@ -608,8 +608,8 @@ function DayCell({
                   {transactions.map((tx, idx) => (
                     <div key={idx} className="flex justify-between text-sm items-center">
                       <span className="truncate flex-1 mr-2" title={tx.summary}>{tx.summary}</span>
-                      <span className={tx.type == 'debit' ? 'text-red-500' : 'text-green-500'}>
-                        {tx.type == 'debit' ? '-' : '+'}${tx.amount.toFixed(2)}
+                      <span className={tx.type === 'debit' ? 'text-red-500' : 'text-green-500'}>
+                        {tx.type === 'debit' ? '-' : '+'}${tx.amount.toFixed(2)}
                       </span>
                     </div>
                   ))}

@@ -127,7 +127,7 @@ export function ForecastMainContent() {
             <ForecastTable
               sortedForecast={sortedForecast}
               sortConfig={sortConfig}
-              handleSort={(key: any) => {
+              handleSort={(key) => {
                  setSortConfig((current) => {
                    if (current.key !== key) {
                      return { key, direction: 'asc' };

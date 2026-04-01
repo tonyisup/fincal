@@ -2,9 +2,11 @@ import { Link, useLocation } from 'react-router-dom';
 import { Home, SlidersHorizontal, Upload, Settings } from 'lucide-react';
 import { useAuth } from '@/App';
 import { useTheme } from '@/providers/theme-provider';
+import type { Theme } from '@/providers/theme-provider';
 import {
   DropdownMenu,
   DropdownMenuContent,
+  DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
@@ -70,7 +72,7 @@ export function NavRail() {
           <DropdownMenuContent align="start" side="right" sideOffset={12}>
             <DropdownMenuLabel>Appearance</DropdownMenuLabel>
             <DropdownMenuSeparator />
-            <DropdownMenuRadioGroup value={theme} onValueChange={(v) => setTheme(v as any)}>
+            <DropdownMenuRadioGroup value={theme} onValueChange={(v: string) => setTheme(v as Theme)}>
               <DropdownMenuRadioItem value="light">Light</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="dark">Dark</DropdownMenuRadioItem>
               <DropdownMenuRadioItem value="system">System</DropdownMenuRadioItem>
@@ -79,13 +81,23 @@ export function NavRail() {
         </DropdownMenu>
 
         {userProfile && (
-          <button
-            onClick={handleLogout}
-            title="Log out"
-            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-muted/50 hover:text-foreground mt-2"
-          >
-            <img src={userProfile.picture} alt={userProfile.name} className="h-7 w-7 rounded-full" />
-          </button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <button
+                title={userProfile.name}
+                className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-xl transition-colors hover:bg-muted/50 hover:text-foreground mt-2 bg-transparent border-none appearance-none"
+              >
+                <img src={userProfile.picture} alt={userProfile.name} className="h-7 w-7 rounded-full" />
+              </button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" side="right" sideOffset={12}>
+              <DropdownMenuLabel>{userProfile.name}</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={handleLogout}>
+                Log out
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         )}
       </div>
     </div>

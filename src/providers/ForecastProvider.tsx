@@ -120,15 +120,34 @@ function loadSession(): StoredSession | null {
 }
 
 export function ForecastProvider({ children }: { children: React.ReactNode }) {
-  const session = loadSession();
-
-  const [currentBalance, setCurrentBalance] = useState(session?.currentBalance ?? '4000');
-  const [timespan, setTimespan] = useState(session?.timespan ?? '90D');
-  const [weekStartDay, setWeekStartDay] = useState<0 | 1>(session?.weekStartDay ?? 0);
-  const [warningAmount, setWarningAmount] = useState<number>(session?.warningAmount ?? 0);
-  const [warningColor, setWarningColor] = useState<string>(session?.warningColor ?? '#b45309');
-  const [warningOperator, setWarningOperator] = useState<'<' | '<='>(session?.warningOperator ?? '<');
-  const [warningStyle, setWarningStyle] = useState<WarningStyle>(session?.warningStyle ?? 'Balance Color');
+  const [currentBalance, setCurrentBalance] = useState(() => {
+    const session = loadSession();
+    return session?.currentBalance ?? '4000';
+  });
+  const [timespan, setTimespan] = useState(() => {
+    const session = loadSession();
+    return session?.timespan ?? '90D';
+  });
+  const [weekStartDay, setWeekStartDay] = useState<0 | 1>(() => {
+    const session = loadSession();
+    return session?.weekStartDay ?? 0;
+  });
+  const [warningAmount, setWarningAmount] = useState<number>(() => {
+    const session = loadSession();
+    return session?.warningAmount ?? 0;
+  });
+  const [warningColor, setWarningColor] = useState<string>(() => {
+    const session = loadSession();
+    return session?.warningColor ?? '#b45309';
+  });
+  const [warningOperator, setWarningOperator] = useState<'<' | '<='>(() => {
+    const session = loadSession();
+    return session?.warningOperator ?? '<';
+  });
+  const [warningStyle, setWarningStyle] = useState<WarningStyle>(() => {
+    const session = loadSession();
+    return session?.warningStyle ?? 'Balance Color';
+  });
   
   const [viewMode, setViewMode] = useState<'table' | 'calendar'>('table');
   const [searchQuery, setSearchQuery] = useState('');
@@ -137,20 +156,41 @@ export function ForecastProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const [preview, setPreview] = useState<ImportPreview | null>(session?.preview ?? null);
-  const [mapping, setMapping] = useState<ImportColumnMapping | null>(session?.mapping ?? null);
+  const [preview, setPreview] = useState<ImportPreview | null>(() => {
+    const session = loadSession();
+    return session?.preview ?? null;
+  });
+  const [mapping, setMapping] = useState<ImportColumnMapping | null>(() => {
+    const session = loadSession();
+    return session?.mapping ?? null;
+  });
   const [importIssues, setImportIssues] = useState<ImportIssue[]>([]);
-  const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(session?.importedTransactions ?? []);
-  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(session?.recurringRules ?? []);
-  const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(session?.oneOffTransactions ?? []);
+  const [importedTransactions, setImportedTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.importedTransactions ?? [];
+  });
+  const [recurringRules, setRecurringRules] = useState<RecurringRule[]>(() => {
+    const session = loadSession();
+    return session?.recurringRules ?? [];
+  });
+  const [oneOffTransactions, setOneOffTransactions] = useState<NormalizedTransaction[]>(() => {
+    const session = loadSession();
+    return session?.oneOffTransactions ?? [];
+  });
   const [forecast, setForecast] = useState<ForecastEntry[]>([]);
 
   const [manualDescription, setManualDescription] = useState('');
   const [manualAmount, setManualAmount] = useState('');
   const [manualDate, setManualDate] = useState(format(addDays(new Date(), 7), 'yyyy-MM-dd'));
 
-  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(session?.selectedCreditCalendarId);
-  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(session?.selectedDebitCalendarId);
+  const [selectedCreditCalendarId, setSelectedCreditCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedCreditCalendarId;
+  });
+  const [selectedDebitCalendarId, setSelectedDebitCalendarId] = useState<string | undefined>(() => {
+    const session = loadSession();
+    return session?.selectedDebitCalendarId;
+  });
 
   // We need the App-level Auth logic exported somehow, but for now we expect useAuth to provide it if used.
   // Actually, we can fetch calendars here if token is available. Let's let the components handle fetching, 
@@ -195,7 +235,7 @@ export function ForecastProvider({ children }: { children: React.ReactNode }) {
     persistSession();
   }, [persistSession]);
 
-  const forecastStartDate = useMemo(() => format(startOfDay(addDays(new Date(), 1)), 'yyyy-MM-dd'), []);
+  const forecastStartDate = format(startOfDay(addDays(new Date(), 1)), 'yyyy-MM-dd');
   const forecastEndDate = useMemo(
     () => format(defaultForecastEndDate(startOfDay(addDays(new Date(), 1)), timespan), 'yyyy-MM-dd'),
     [timespan],
