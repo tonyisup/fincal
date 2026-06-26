@@ -16,9 +16,6 @@ export function LandingPage({ signIn }: LandingPageProps) {
             <Button asChild variant="ghost">
               <Link to="/app">Open App</Link>
             </Button>
-            <Button onClick={signIn} variant="outline">
-              Connect Google
-            </Button>
           </nav>
         </div>
       </header>
@@ -44,6 +41,9 @@ export function LandingPage({ signIn }: LandingPageProps) {
                   Connect Google for Export
                 </Button>
               </div>
+              <p className="text-xs text-white/75">
+                You can use FinCal without Google. Connect it only if you want calendar export.
+              </p>
             </div>
           </div>
         </section>

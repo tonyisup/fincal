@@ -59,16 +59,16 @@ export function ForecastControlsSidebar() {
         <div className="pt-4 space-y-3">
           <label className="space-y-1.5 text-sm font-medium">
             <span className="text-muted-foreground text-xs">Forecast Starts</span>
-            <div className="flex items-center rounded-lg border bg-background/50 px-3 py-2.5">
-              <span>{forecastStartDate}</span>
+            <div className="flex items-center rounded-lg border bg-muted/30 px-3 py-2.5">
+              <span className="text-muted-foreground">{forecastStartDate}</span>
               <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
             </div>
           </label>
 
           <label className="space-y-1.5 text-sm font-medium">
             <span className="text-muted-foreground text-xs">Forecast Ends</span>
-            <div className="flex items-center rounded-lg border bg-background/50 px-3 py-2.5">
-              <span>{forecastEndDate}</span>
+            <div className="flex items-center rounded-lg border bg-muted/30 px-3 py-2.5">
+              <span className="text-muted-foreground">{forecastEndDate}</span>
               <CalendarIcon className="ml-auto h-4 w-4 text-muted-foreground" />
             </div>
           </label>
@@ -167,8 +167,8 @@ export function ForecastControlsSidebar() {
               value={warningOperator}
               onChange={(e) => setWarningOperator(e.target.value as '<' | '<=')}
             >
-              <option value="<">Balance below thr...</option>
-              <option value="<=">Balance at/below thr...</option>
+              <option value="<">Balance below threshold</option>
+              <option value="<=">Balance at or below threshold</option>
             </select>
           </label>
           <label className="space-y-1.5 text-sm font-medium flex justify-between items-center">
@@ -186,6 +186,9 @@ export function ForecastControlsSidebar() {
               <option value="Balance Color">Balance Color</option>
             </select>
           </label>
+          <p className="text-xs text-muted-foreground">
+            These settings control when the forecast starts warning you and how the warning appears.
+          </p>
         </div>
 
       </div>
