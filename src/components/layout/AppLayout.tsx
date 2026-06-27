@@ -1,11 +1,11 @@
-import { Outlet, Navigate } from 'react-router-dom';
+import { Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 import { NavRail } from './NavRail';
 import { ForecastProvider } from '@/providers/ForecastProvider';
 import { useAuth } from '@/App';
 
 export function AppLayout() {
-  const { isRestoringSession, isSignedIn } = useAuth();
+  const { isRestoringSession } = useAuth();
 
   if (isRestoringSession) {
     return (
@@ -14,10 +14,6 @@ export function AppLayout() {
         <span>Loading...</span>
       </div>
     );
-  }
-
-  if (!isSignedIn) {
-    return <Navigate to="/" replace />;
   }
 
   return (

@@ -1,0 +1,25 @@
+Compatibility and FAQ
+
+Recommended setup
+- Desktop Microsoft Excel on Mac or Windows
+
+Google Sheets
+- Not officially supported in this first release
+- Some formulas may work, but the workbook is designed for Excel first
+
+Common questions
+
+Does this import bank transactions automatically?
+- No. This is a manual planner.
+
+Does this detect recurring income and bills for me?
+- No. You enter recurring items manually.
+
+Can I use this for personal finances?
+- Yes, but the default examples are built for freelancers and solo businesses.
+
+Can I change the forecast horizon?
+- Yes. Update the number of months on the `Inputs` sheet.
+
+What if I need automation?
+- FinCal is the automated version of this workflow. It imports transaction files, detects recurring cash events, and builds a forward-looking balance forecast.

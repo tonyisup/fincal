@@ -1,0 +1,14 @@
+When the spreadsheet starts feeling like work, move to FinCal.
+
+FinCal is built for the same planning problem, but with a faster workflow:
+- Import CSV or Excel transaction exports
+- Detect recurring income and bills
+- Add planned one-off events
+- Generate a forward-looking cash balance forecast
+
+The spreadsheet is the manual version.
+FinCal is the workflow version.
+
+Start here:
+- App: /app
+- Main site: /

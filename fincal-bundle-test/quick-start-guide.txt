@@ -1,0 +1,39 @@
+Cash Runway Planner Quick Start
+
+Who this is for
+- Freelancers and solo business owners who want a lightweight way to plan cash runway manually.
+
+What is included
+- Cash runway planner workbook
+- Scenario planning sheets
+- Sample solo-business assumptions
+- FinCal upgrade note
+
+Setup in 5 minutes
+1. Open `cash-runway-planner.xlsx` in desktop Excel.
+2. Update the `Inputs` sheet with:
+   - Starting cash
+   - Forecast start month
+   - Number of months to project
+   - Warning threshold
+3. Add recurring income items on `Recurring Income`.
+4. Add recurring expenses on `Recurring Expenses`.
+5. Add large one-off items on `One-Off Adjustments`.
+6. Review `Forecast Timeline` and `Dashboard`.
+7. Compare scenarios using `Scenario Base`, `Scenario Conservative`, and `Scenario Optimistic`.
+
+What this planner does
+- Projects monthly cash runway
+- Helps you spot your lowest projected balance
+- Lets you test one-off shocks before they happen
+
+What this planner does not do
+- It does not import bank data
+- It does not detect recurring transactions automatically
+- It does not sync with Google Calendar
+- It does not replace accounting software
+
+When to switch to FinCal
+- You are tired of updating the spreadsheet manually
+- You want recurring bill and paycheck detection from transaction exports
+- You want a faster forecast workflow with less spreadsheet maintenance
