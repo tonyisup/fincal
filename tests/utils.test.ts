@@ -19,9 +19,12 @@ describe('parseEventTitle', () => {
   it('returns null for invalid titles', () => {
     const warn = vi.spyOn(console, 'warn').mockImplementation(() => {});
 
-    expect(parseEventTitle('not money')).toBeNull();
-
-    warn.mockRestore();
+    try {
+      expect(parseEventTitle('not money')).toBeNull();
+      expect(warn).toHaveBeenCalledWith('Could not parse event title: "not money"');
+    } finally {
+      warn.mockRestore();
+    }
   });
 });
 
