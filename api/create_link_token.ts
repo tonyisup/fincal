@@ -1,4 +1,4 @@
-import { PlaidApi, Configuration, PlaidEnvironments } from 'plaid';
+import { PlaidApi, Configuration, PlaidEnvironments, Products, CountryCode } from 'plaid';
 
 const configuration = new Configuration({
   basePath: PlaidEnvironments.sandbox,
@@ -23,8 +23,8 @@ export default async function handler(req, res) {
         client_user_id: 'user-id', // In a real app, this should be a unique identifier for the authenticated user
       },
       client_name: 'Fin Cal',
-      products: ['transactions'],
-      country_codes: ['US'],
+      products: [Products.Transactions],
+      country_codes: [CountryCode.Us],
       language: 'en',
     });
 
