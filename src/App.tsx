@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, createContext, useContext } from 'react';
+import React, { useState, useEffect, useCallback, createContext, useContext, useRef } from 'react';
 import { useGoogleLogin, googleLogout } from '@react-oauth/google';
 import { BrowserRouter, Routes, Route, Navigate, useNavigate } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
@@ -43,14 +43,6 @@ export const useAuth = () => {
 // Protected Route Component
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { isSignedIn, isRestoringSession, login, error } = useAuth();
-  const [hasRequestedLogin, setHasRequestedLogin] = useState(false);
-
-  useEffect(() => {
-    if (!isRestoringSession && !isSignedIn && !hasRequestedLogin) {
-      setHasRequestedLogin(true);
-      login();
-    }
-  }, [isRestoringSession, isSignedIn, hasRequestedLogin, login]);
 
   if (isRestoringSession) {
     return (
@@ -60,17 +52,11 @@ function ProtectedRoute({ children }: { children: React.ReactNode }) {
     );
   }
 
-  // If error occurred (e.g. user cancelled login), redirect to landing
-  if (error && !isSignedIn) {
-    return <Navigate to="/" replace />;
-  }
-
   if (!isSignedIn) {
-    // Show spinner while waiting for login interaction
     return (
       <div className="flex justify-center items-center h-screen flex-col gap-4">
-        <Spinner />
-        <p className="text-muted-foreground">Please sign in to continue...</p>
+        <p className="text-muted-foreground">Please sign in to continue.</p>
+        {error && <p className="text-sm text-destructive">{error}</p>}
         <Button onClick={() => login()} variant="default">
           Sign In
         </Button>
@@ -91,8 +77,8 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
   const [hasWriteAccess, setHasWriteAccess] = useState(false);
   const navigate = useNavigate();
 
-  // Promise resolver for the write access flow
-  const [writeAccessResolve, setWriteAccessResolve] = useState<((granted: boolean) => void) | null>(null);
+  // Promise resolver for the write access flow.
+  const writeAccessResolveRef = useRef<((granted: boolean) => void) | null>(null);
 
   const checkScopes = useCallback(async (token: string) => {
     try {
@@ -185,7 +171,7 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const login = useGoogleLogin({
+  const googleLogin = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
       const token = tokenResponse.access_token;
 
@@ -202,8 +188,19 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       console.error("Login Failed:", errorResponse);
       setError("Google login failed.");
     },
+    onNonOAuthError: (nonOAuthError) => {
+      console.error("Google login popup failed:", nonOAuthError);
+      setError(nonOAuthError.type === 'popup_failed_to_open'
+        ? "Google sign-in was blocked by the browser. Please click Sign In again and allow popups for this site if prompted."
+        : "Google sign-in was cancelled before it completed.");
+    },
     scope: 'https://www.googleapis.com/auth/calendar.readonly https://www.googleapis.com/auth/calendar.events.readonly https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
   });
+
+  const login = useCallback(() => {
+    setError(null);
+    googleLogin();
+  }, [googleLogin]);
 
   const loginForWrite = useGoogleLogin({
     onSuccess: async (tokenResponse) => {
@@ -212,24 +209,28 @@ function AuthProvider({ children }: { children: React.ReactNode }) {
       setAccessToken(token);
       setHasWriteAccess(true);
 
-      if (writeAccessResolve) {
-        writeAccessResolve(true);
-        setWriteAccessResolve(null);
-      }
+      writeAccessResolveRef.current?.(true);
+      writeAccessResolveRef.current = null;
     },
     onError: (errorResponse) => {
       console.error("Write Access Login Failed:", errorResponse);
-      if (writeAccessResolve) {
-        writeAccessResolve(false);
-        setWriteAccessResolve(null);
-      }
+      writeAccessResolveRef.current?.(false);
+      writeAccessResolveRef.current = null;
+    },
+    onNonOAuthError: (nonOAuthError) => {
+      console.error("Write access popup failed:", nonOAuthError);
+      writeAccessResolveRef.current?.(false);
+      writeAccessResolveRef.current = null;
+      setError(nonOAuthError.type === 'popup_failed_to_open'
+        ? "Google permission upgrade was blocked by the browser. Please try again from the button you just clicked."
+        : "Google permission upgrade was cancelled before it completed.");
     },
     scope: 'https://www.googleapis.com/auth/calendar https://www.googleapis.com/auth/calendar.events',
   });
 
   const grantWriteAccess = useCallback(() => {
     return new Promise<boolean>((resolve) => {
-      setWriteAccessResolve(() => resolve);
+      writeAccessResolveRef.current = resolve;
       loginForWrite();
     });
   }, [loginForWrite]);

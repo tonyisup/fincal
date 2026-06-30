@@ -44,6 +44,17 @@ interface AddTransactionDialogProps {
 }
 
 type Frequency = "ONCE" | "DAILY" | "WEEKLY" | "BIWEEKLY" | "MONTHLY" | "YEARLY";
+type CalendarApiError = {
+  message: string;
+  status?: number;
+};
+
+function isCalendarApiError(error: unknown): error is CalendarApiError {
+  return typeof error === "object"
+    && error !== null
+    && "message" in error
+    && typeof (error as { message: unknown }).message === "string";
+}
 
 export function AddTransactionDialog({
   selectedCreditCalendarId,
@@ -154,7 +165,7 @@ export function AddTransactionDialog({
       );
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
+        const errorData: { error?: { message?: string } } = await response.json().catch(() => ({}));
         throw {
           message: errorData.error?.message || response.statusText,
           status: response.status,
@@ -165,10 +176,13 @@ export function AddTransactionDialog({
       // We don't reset form here because useEffect will do it on next open
       // but cleaning up is good practice if we didn't have the effect.
       onTransactionAdded();
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error("Error creating transaction:", err);
-      setError(`Failed to create transaction: ${err.message}`);
-      if (err.status === 401) {
+      const calendarError = isCalendarApiError(err)
+        ? err
+        : { message: "Unknown error" };
+      setError(`Failed to create transaction: ${calendarError.message}`);
+      if (calendarError.status === 401) {
         handleLogout();
       }
     } finally {
