@@ -73,9 +73,9 @@ describe('App routes', () => {
   it('renders the signed-out landing page', async () => {
     await renderAppAt('/');
 
-    expect(await screen.findByRole('heading', { name: /forecast your financial future/i })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /get started with google/i })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /terms of service/i })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: /know your balance before the month begins/i })).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /continue with google/i })).toHaveLength(2);
+    expect(screen.getByRole('link', { name: /^terms$/i })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /privacy/i })).toBeInTheDocument();
   });
 
