@@ -26,7 +26,7 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@react-oauth/google": "^0.12.2",
     "@tailwindcss/vite": "^4.3.2",
-    "body-parser": "^2.2.1",
+    "body-parser": "^2.4.0",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cors": "^2.8.5",
